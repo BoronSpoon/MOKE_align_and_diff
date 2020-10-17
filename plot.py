@@ -23,6 +23,7 @@ def onMouse(event, x, y, flag, params):
         C.done = True
 
 def get_coords(frame, path): # コントラスト測定範囲の設定
+    print("select region to measure contrast")
     cv2.namedWindow(path)
     original_frame = np.copy(frame)
     cv2.setMouseCallback(path, onMouse, [frame, original_frame])

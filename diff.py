@@ -7,7 +7,6 @@ import math
 import multiprocessing as mp
 
 # todo
-# parallel ecc
 # change white black amplification ratio dynamically
 
 def open_video(path):
@@ -128,13 +127,45 @@ def get_max_diff(basis_frame, frames):
     return max(diffs)
 
 def get_diff_frames(basis_frame, frames, max_diff, rate, diff_path):
-    diff_frames = []
     writer = cv2.VideoWriter(diff_path,  
                             cv2.VideoWriter_fourcc(*'MJPG'), 
                             10, basis_frame.shape[:2][::-1]) 
-    for frame in frames:
-        diff_frame = get_diff_frame(basis_frame, frame, max_diff, rate)        
-        diff_frames.append(diff_frame)
+    status = 1
+    print("press wasd to change 'rate'")
+    print("press Enter, Esc to exit")
+    while (status):
+        diff_frames = []
+        len_frames = len(frames)
+        for count, frame in enumerate(frames):
+            diff_frame = get_diff_frame(basis_frame, frame, max_diff, rate)        
+            diff_frames.append(diff_frame)        
+            cv2.imshow(path, diff_frame)
+            if count == len_frames -1: # last frame: wait infinitely for "left", "right", "enter"
+                if status is not 0: # break when status = 0
+                    k = cv2.waitKey(0) 
+            else:
+                k = cv2.waitKey(50) 
+            if k in [13, 27]: # "enter" or "esc" key to break
+                status = 0 # break out of loop
+                if count == len_frames -1: 
+                    break # if broke at middle, diff_frames will not be fully polulated
+            if status is not 0: # prevent breaking when status = 0
+                if k == ord("w"): # "w" to increment "rate"
+                    rate += 5
+                    break
+                elif k == ord("d"): # "d" to increment "rate"
+                    rate += 1
+                    break
+                elif k == ord("s"): # "a","s" to decrement "rate"
+                    rate -= 5
+                    break
+                elif k == ord("a"): # "a","s" to decrement "rate"
+                    rate -= 1
+                    break
+
+        print(f"rate={int(rate)}")
+            
+    for diff_frame in diff_frames:
         writer.write(diff_frame)
     writer.release() 
     return diff_frames
@@ -147,8 +178,6 @@ def get_diff_frame(frame1, frame2, max_diff, rate):
     diff_frame = np.where(diff_frame>255, 255, diff_frame)
     diff_frame = np.where(diff_frame<0, 0, diff_frame)
     diff_frame = diff_frame.astype("uint8") # uint8に戻す
-    cv2.imshow(path, diff_frame)
-    cv2.waitKey(1)
     return diff_frame
 
 if __name__ == "__main__":
