@@ -45,6 +45,8 @@ def get_contrast(frames, path):
         #cv2.waitKey(100)
         # RMS contrast
         RMS_contrast = cropped_frame.std()
+        # mean contrast
+        mean_contrast = 100 * (cropped_frame.max()-cropped_frame.min())/cropped_frame.mean()
         contrasts.append(RMS_contrast) # use RMS constant
     return contrasts
     

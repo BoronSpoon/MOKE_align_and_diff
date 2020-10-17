@@ -102,6 +102,9 @@ def get_diff_frame(frame1, frame2, max_diff, rate):
     frame1 = frame1.astype("float32")
     frame2 = frame2.astype("float32")
     diff_frame = (frame2/2 - frame1/2) * 127*rate/max_diff + 127 # -127~127 + 127(offset) => 0~255(縁を除く)
+    # 255以上と0以下の値をそれぞれ255,0にする。overflowした値は255を法としてしまうため。
+    diff_frame = np.where(diff_frame>255, 255, diff_frame)
+    diff_frame = np.where(diff_frame<0, 0, diff_frame)
     diff_frame = diff_frame.astype("uint8") # uint8に戻す
     cv2.imshow(path, diff_frame)
     cv2.waitKey(1)
