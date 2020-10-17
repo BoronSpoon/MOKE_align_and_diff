@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
-import numpy as np
-
+import csv
 import numpy as np
 import cv2
 import config as C
@@ -51,9 +50,18 @@ def get_contrast(frames, path):
         contrasts.append(RMS_contrast) # use RMS constant
     return contrasts
     
-def plot_contrast(x,y,plot_path):
-    plt.plot(x,y)
+def plot_contrast(fields, contrasts,plot_path):
+    plt.plot(fields, contrasts)
     plt.xlabel("Magnetic field intensity (Oe)")
     plt.ylabel("Contrast")
     plt.savefig(plot_path)
     plt.show()
+
+def contrast2csv(fields, contrasts, contrast_csv_path):
+    with open(contrast_csv_path, "w", newline ="") as f:  
+        writer = csv.writer(f)
+        header = ["field strength (Oe)", "contrast"]
+        writer.writerow(header) # write header
+        for field, contrast in zip(fields,contrasts): # write row by row
+            writer.writerow([field, contrast])
+

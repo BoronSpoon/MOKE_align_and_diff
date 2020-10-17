@@ -5,8 +5,6 @@ from plot import *
 import sys
 
 # todo 
-# output meas avi
-# contrast csv
 # shift csv
 # 
 
@@ -142,6 +140,7 @@ frames = get_diff_frames(basis_frame, frames, max_diff, rate, diff_path) # 画�
 get_coords(basis_frame, path) # コントラスト測定範囲の設定
 contrasts = get_contrast(frames, path) # コントラストの測定
 plot_contrast(fields, contrasts, plot_path) # コントラスト対磁界のプロット
+contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
 
 #.destroyAllWindows() 
 print("The video was successfully saved") 
