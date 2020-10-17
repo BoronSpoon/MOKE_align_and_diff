@@ -52,9 +52,9 @@ def align_frames(basis_frame, frames, meas_path):
                             cv2.VideoWriter_fourcc(*'MJPG'), 
                             10, basis_frame.shape[:2][::-1]) 
     for frame in frames:
-        align_frame = align_frame(basis_frame, frame)
-        aligned_frames.append(align_frame)
-        writer.write(align_frame)
+        aligned_frame = align_frame(basis_frame, frame)
+        aligned_frames.append(aligned_frame)
+        writer.write(aligned_frame)
     writer.release()
     return aligned_frames
 
