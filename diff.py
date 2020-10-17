@@ -3,6 +3,7 @@ import numpy as np
 from ocr import get_strings
 from plot import *
 import sys
+import math
 
 # todo 
 # shift csv
@@ -46,10 +47,10 @@ def crop_frame(frame):
 def shift2csv(shifts, shift_csv_path, frames_offset_count):
     with open(shift_csv_path, "w", newline ="") as f:  
         writer = csv.writer(f)
-        header = [f"frame count (start at {frames_offset_count + 2}'th frame)", "shift_x", "shift_y"]
+        header = [f"frame count \n(start at {frames_offset_count + 2}'th frame)", "round(shift_x)", "round(shift_y)", "shift_x", "shift_y"]
         writer.writerow(header) # write header
         for count, shift in enumerate(shifts): # write row by row
-            writer.writerow([count, shift[0], shift[1]])
+            writer.writerow([count, shift[0], shift[1], shift[2], shift[3]])
 
 def align_frames(basis_frame, frames, meas_path):
     aligned_frames = []
@@ -90,8 +91,7 @@ def align_frame(frame1, frame2):
     (cc, warp_matrix) = cv2.findTransformECC (frame1_gray,frame2_gray,warp_matrix, warp_mode, criteria, inputMask=None, gaussFiltSize=1)
 
     # get shift (x,y)
-    print(warp_matrix)
-    shift = [warp_matrix[0,2], warp_matrix[1,2]]
+    shift = [round(warp_matrix[0,2]), round(warp_matrix[1,2]), warp_matrix[0,2], warp_matrix[1,2]]
 
     # Use warpAffine for Translation, Euclidean and Affine
     frame2_aligned = cv2.warpAffine(frame2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
