@@ -19,19 +19,31 @@ def onMouse(event, x, y, flag, params):
         C.plist[1] = x,y
         cv2.addWeighted(img2, 1.0, img1, 0.0, 0.0, img1) # 元画像を描画(前回の矩形を消すため)
         cv2.rectangle(img1,(C.plist[0][0],C.plist[0][1]),(C.plist[1][0],C.plist[1][1]),(0,0,255),1)
-        C.drawing = False
-        C.done = True
+        if C.plist[0][0] == C.plist[1][0] and C.plist[0][1] == C.plist[1][1]: # 領域の面積が0の時
+            C.drawing = False
+            C.done = False
+        else:
+            C.drawing = False
+            C.done = True
 
-def get_coords(frame, path): # コントラスト測定範囲の設定
+def get_coords_setup(frame, path): # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
     print("select region to measure contrast")
+    print("press Enter, Esc to exit")
     cv2.namedWindow(path)
     original_frame = np.copy(frame)
     cv2.setMouseCallback(path, onMouse, [frame, original_frame])
+
+def get_coords(frame, path): # コントラスト測定範囲の設定
+    status = 1
     while True: 
         cv2.imshow(path,frame)
-        if cv2.waitKey(1) & 0xFF == 27 or C.done == True:
+        if C.done:
+            C.done = False
             break
-    #cv2.destroyAllWindows()
+        elif cv2.waitKey(1) in [13,27]: # "enter" or "esc" key to break
+            status = 0
+            break
+    return status
 
 def get_contrast(frames, path):
     contrasts = []
@@ -52,11 +64,14 @@ def get_contrast(frames, path):
     return contrasts
     
 def plot_contrast(fields, contrasts,plot_path):
+    plt.clf()
     plt.plot(fields, contrasts)
     plt.xlabel("Magnetic field intensity (Oe)")
     plt.ylabel("Contrast")
     plt.savefig(plot_path)
-    plt.show()
+    plt.ion()
+    plt.show() # do not block (continue the program even when plot windows is not closed)
+    plt.pause(.001)
 
 def contrast2csv(fields, contrasts, contrast_csv_path):
     with open(contrast_csv_path, "w", newline ="") as f:  

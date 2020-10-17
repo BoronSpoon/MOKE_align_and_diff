@@ -144,7 +144,7 @@ def get_diff_frames(basis_frame, frames, max_diff, rate, diff_path):
                 if status is not 0: # break when status = 0
                     k = cv2.waitKey(0) 
             else:
-                k = cv2.waitKey(50) 
+                k = cv2.waitKey(33) 
             if k in [13, 27]: # "enter" or "esc" key to break
                 status = 0 # break out of loop
                 if count == len_frames -1: 
@@ -180,6 +180,15 @@ def get_diff_frame(frame1, frame2, max_diff, rate):
     diff_frame = diff_frame.astype("uint8") # uint8に戻す
     return diff_frame
 
+def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, contrast_csv_path):
+    status = 1
+    get_coords_setup(basis_frame, path) # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
+    while(status):
+        status = get_coords(basis_frame, path) # コントラスト測定範囲の設定
+        contrasts = get_contrast(frames, path) # コントラストの測定
+        plot_contrast(fields, contrasts, plot_path) # コントラスト対磁界のプロット
+    contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
+
 if __name__ == "__main__":
     rate = float(sys.argv[1]) # 差分画像の白黒の強調具合
     path = sys.argv[2] # 動画のパス
@@ -199,11 +208,7 @@ if __name__ == "__main__":
     shift2csv(shifts, shift_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
     max_diff = get_max_diff(basis_frame, frames) # 差分画像の差分の最大値を得る
     frames = get_diff_frames(basis_frame, frames, max_diff, rate, diff_path) # 画像の差分を取る
-
-    get_coords(basis_frame, path) # コントラスト測定範囲の設定
-    contrasts = get_contrast(frames, path) # コントラストの測定
-    plot_contrast(fields, contrasts, plot_path) # コントラスト対磁界のプロット
-    contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
+    select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, contrast_csv_path)
 
     #.destroyAllWindows() 
     print("The video was successfully saved") 
