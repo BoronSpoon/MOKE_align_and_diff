@@ -41,6 +41,7 @@ def get_contrast(frames, path):
         y = [min(C.plist[0][0], C.plist[1][0]), max(C.plist[0][0], C.plist[1][0])]
         cropped_frame = frame[x[0]:x[1], y[0]:y[1], :] # コントラストを測る部分にクロップ
         cropped_frame = cv2.cvtColor(cropped_frame, cv2.COLOR_BGR2GRAY) # コントラストは白黒画像で測定
+        cropped_frame = cropped_frame.astype("float64")
         #cv2.imshow(plot, cropped_frame)
         #cv2.waitKey(100)
         # RMS contrast
