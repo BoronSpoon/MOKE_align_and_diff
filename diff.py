@@ -6,7 +6,7 @@ import sys
 
 # todo 
 # shift csv
-# 
+# change white black amplification ratio dynamically
 
 def open_video(path):
     cap = cv2.VideoCapture(path)
@@ -43,18 +43,28 @@ def crop_frame(frame):
     frame = frame[int(h*1/6):int(h*5/6),: , :] # 緑色の文字が端にあるので除く
     return frame
 
+def shift2csv(shifts, shift_csv_path, frames_offset_count):
+    with open(shift_csv_path, "w", newline ="") as f:  
+        writer = csv.writer(f)
+        header = [f"frame count (start at {frames_offset_count + 2}'th frame)", "shift_x", "shift_y"]
+        writer.writerow(header) # write header
+        for count, shift in enumerate(shifts): # write row by row
+            writer.writerow([count, shift[0], shift[1]])
+
 def align_frames(basis_frame, frames, meas_path):
     aligned_frames = []
     diff_frames = []
+    shifts = []
     writer = cv2.VideoWriter(meas_path,  
                             cv2.VideoWriter_fourcc(*'MJPG'), 
                             10, basis_frame.shape[:2][::-1]) 
     for frame in frames:
-        aligned_frame = align_frame(basis_frame, frame)
+        aligned_frame, shift = align_frame(basis_frame, frame)
+        shifts.append(shift)
         aligned_frames.append(aligned_frame)
         writer.write(aligned_frame)
     writer.release()
-    return aligned_frames
+    return aligned_frames, shifts
 
 def align_frame(frame1, frame2):
     # Convert images to grayscale
@@ -65,7 +75,6 @@ def align_frame(frame1, frame2):
     sz = frame1.shape
 
     # Define the motion model
-    #warp_mode = cv2.MOTION_EUCLEDIAN # xy_shift + rotation
     warp_mode = cv2.MOTION_TRANSLATION # only xy_shift
     warp_matrix = np.eye(2, 3, dtype=np.float32)
     number_of_iterations = 5000
@@ -80,9 +89,13 @@ def align_frame(frame1, frame2):
     # Run the ECC algorithm. The results are stored in warp_matrix.
     (cc, warp_matrix) = cv2.findTransformECC (frame1_gray,frame2_gray,warp_matrix, warp_mode, criteria, inputMask=None, gaussFiltSize=1)
 
+    # get shift (x,y)
+    print(warp_matrix)
+    shift = [warp_matrix[0,2], warp_matrix[1,2]]
+
     # Use warpAffine for Translation, Euclidean and Affine
     frame2_aligned = cv2.warpAffine(frame2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
-    return frame2_aligned
+    return frame2_aligned, shift
 
 def get_max_diff(basis_frame, frames):
     diffs = []
@@ -128,12 +141,14 @@ meas_path = path.replace(".avi","_meas.avi") # meas avi path
 plot_path = path.replace(".avi","_contrast.png") # contrast plot path
 contrast_csv_path = path.replace(".avi","_contrast.csv") # contrast csv path
 shift_csv_path = path.replace(".avi","_shift.csv") # shift csv path(基準画像と測定画像のシフト量)
+frames_offset_count = 0 # 基準画像にする画像のフレーム
 
 frames, fields = open_video(path) # 動画の読み込み 
-frames, fields = remove_first_frames(0, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
+frames, fields = remove_first_frames(frames_offset_count, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
 # 基準画像とその他に分割
 basis_frame, frames, original_frames, fields = split_frames(frames, fields)
-frames = align_frames(basis_frame, frames, meas_path) # 基準・測定画像の位置合わせ
+frames, shifts = align_frames(basis_frame, frames, meas_path) # 基準・測定画像の位置合わせ
+shift2csv(shifts, shift_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
 max_diff = get_max_diff(basis_frame, frames) # 差分画像の差分の最大値を得る
 frames = get_diff_frames(basis_frame, frames, max_diff, rate, diff_path) # 画像の差分を取る
 
