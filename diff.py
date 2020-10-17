@@ -4,9 +4,11 @@ from ocr import get_strings
 from plot import *
 import sys
 import math
+import subprocess as sp
+import multiprocessing as mp
 
-# todo 
-# shift csv
+# todo
+# parallel ecc
 # change white black amplification ratio dynamically
 
 def open_video(path):
@@ -52,17 +54,37 @@ def shift2csv(shifts, shift_csv_path, frames_offset_count):
         for count, shift in enumerate(shifts): # write row by row
             writer.writerow([count, shift[0], shift[1], shift[2], shift[3]])
 
-def align_frames(basis_frame, frames, meas_path):
+def align_frame_map(args):
+    return align_frame(*args)
+
+def align_frames_multiprocessing(basis_frame, frames, meas_path):
     aligned_frames = []
-    diff_frames = []
     shifts = []
     writer = cv2.VideoWriter(meas_path,  
                             cv2.VideoWriter_fourcc(*'MJPG'), 
-                            10, basis_frame.shape[:2][::-1]) 
+                            10, basis_frame.shape[:2][::-1])
+    num_processes = mp.cpu_count()
+    print(f"num_processes = {num_processes}")
+    p = mp.Pool(num_processes)
+    args = [[basis_frame, frame] for frame in frames]
+    rets = p.map(align_frame_map, args)
+    for ret in rets:
+        aligned_frames.append(ret[0])
+        shifts.append(ret[1])
+        writer.write(ret[0])
+    writer.release()
+    return aligned_frames, shifts
+
+def align_frames(basis_frame, frames, meas_path):
+    aligned_frames = []
+    shifts = []
+    writer = cv2.VideoWriter(meas_path,  
+                            cv2.VideoWriter_fourcc(*'MJPG'), 
+                            10, basis_frame.shape[:2][::-1])
     for frame in frames:
         aligned_frame, shift = align_frame(basis_frame, frame)
-        shifts.append(shift)
         aligned_frames.append(aligned_frame)
+        shifts.append(shift)
         writer.write(aligned_frame)
     writer.release()
     return aligned_frames, shifts
@@ -107,7 +129,6 @@ def get_max_diff(basis_frame, frames):
         frame = frame.astype("float32")
         diff = np.max(np.abs(frame/2 - basis_frame/2)) # 差分画像の最大値
         diffs.append(diff)
-    print(max(diffs))
     return max(diffs)
 
 def get_diff_frames(basis_frame, frames, max_diff, rate, diff_path):
@@ -134,28 +155,29 @@ def get_diff_frame(frame1, frame2, max_diff, rate):
     cv2.waitKey(1)
     return diff_frame
 
-rate = float(sys.argv[1]) # 差分画像の白黒の強調具合
-path = sys.argv[2] # 動画のパス
-diff_path = path.replace(".avi","_diff.avi") # diff avi path
-meas_path = path.replace(".avi","_meas.avi") # meas avi path
-plot_path = path.replace(".avi","_contrast.png") # contrast plot path
-contrast_csv_path = path.replace(".avi","_contrast.csv") # contrast csv path
-shift_csv_path = path.replace(".avi","_shift.csv") # shift csv path(基準画像と測定画像のシフト量)
-frames_offset_count = 0 # 基準画像にする画像のフレーム
+if __name__ == "__main__":
+    rate = float(sys.argv[1]) # 差分画像の白黒の強調具合
+    path = sys.argv[2] # 動画のパス
+    diff_path = path.replace(".avi","_diff.avi") # diff avi path
+    meas_path = path.replace(".avi","_meas.avi") # meas avi path
+    plot_path = path.replace(".avi","_contrast.png") # contrast plot path
+    contrast_csv_path = path.replace(".avi","_contrast.csv") # contrast csv path
+    shift_csv_path = path.replace(".avi","_shift.csv") # shift csv path(基準画像と測定画像のシフト量)
+    frames_offset_count = 0 # 基準画像にする画像のフレーム
 
-frames, fields = open_video(path) # 動画の読み込み 
-frames, fields = remove_first_frames(frames_offset_count, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
-# 基準画像とその他に分割
-basis_frame, frames, original_frames, fields = split_frames(frames, fields)
-frames, shifts = align_frames(basis_frame, frames, meas_path) # 基準・測定画像の位置合わせ
-shift2csv(shifts, shift_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
-max_diff = get_max_diff(basis_frame, frames) # 差分画像の差分の最大値を得る
-frames = get_diff_frames(basis_frame, frames, max_diff, rate, diff_path) # 画像の差分を取る
+    frames, fields = open_video(path) # 動画の読み込み 
+    frames, fields = remove_first_frames(frames_offset_count, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
+    # 基準画像とその他に分割
+    basis_frame, frames, original_frames, fields = split_frames(frames, fields)
+    frames, shifts = align_frames_multiprocessing(basis_frame, frames, meas_path) # 基準・測定画像の位置合わせ
+    shift2csv(shifts, shift_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
+    max_diff = get_max_diff(basis_frame, frames) # 差分画像の差分の最大値を得る
+    frames = get_diff_frames(basis_frame, frames, max_diff, rate, diff_path) # 画像の差分を取る
 
-get_coords(basis_frame, path) # コントラスト測定範囲の設定
-contrasts = get_contrast(frames, path) # コントラストの測定
-plot_contrast(fields, contrasts, plot_path) # コントラスト対磁界のプロット
-contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
+    get_coords(basis_frame, path) # コントラスト測定範囲の設定
+    contrasts = get_contrast(frames, path) # コントラストの測定
+    plot_contrast(fields, contrasts, plot_path) # コントラスト対磁界のプロット
+    contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
 
-#.destroyAllWindows() 
-print("The video was successfully saved") 
+    #.destroyAllWindows() 
+    print("The video was successfully saved") 
