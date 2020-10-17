@@ -4,6 +4,12 @@ from ocr import get_strings
 from plot import *
 import sys
 
+# todo 
+# output meas avi
+# contrast csv
+# shift csv
+# 
+
 def open_video(path):
     cap = cv2.VideoCapture(path)
     if (cap.isOpened()== False): 
@@ -39,10 +45,17 @@ def crop_frame(frame):
     frame = frame[int(h*1/6):int(h*5/6),: , :] # 緑色の文字が端にあるので除く
     return frame
 
-def align_frames(basis_frame, frames):
+def align_frames(basis_frame, frames, meas_path):
     aligned_frames = []
+    diff_frames = []
+    writer = cv2.VideoWriter(meas_path,  
+                            cv2.VideoWriter_fourcc(*'MJPG'), 
+                            10, basis_frame.shape[:2][::-1]) 
     for frame in frames:
-        aligned_frames.append(align_frame(basis_frame, frame))
+        align_frame = align_frame(basis_frame, frame)
+        aligned_frames.append(align_frame)
+        writer.write(align_frame)
+    writer.release()
     return aligned_frames
 
 def align_frame(frame1, frame2):
@@ -86,9 +99,9 @@ def get_max_diff(basis_frame, frames):
     print(max(diffs))
     return max(diffs)
 
-def get_diff_frames(basis_frame, frames, max_diff, rate, new_path):
+def get_diff_frames(basis_frame, frames, max_diff, rate, diff_path):
     diff_frames = []
-    writer = cv2.VideoWriter(new_path,  
+    writer = cv2.VideoWriter(diff_path,  
                             cv2.VideoWriter_fourcc(*'MJPG'), 
                             10, basis_frame.shape[:2][::-1]) 
     for frame in frames:
@@ -112,16 +125,19 @@ def get_diff_frame(frame1, frame2, max_diff, rate):
 
 rate = float(sys.argv[1]) # 差分画像の白黒の強調具合
 path = sys.argv[2] # 動画のパス
-new_path = path.replace(".avi","_diff.avi") # diff avi path
-plot_path = path.replace(".avi","_contrast.png") # plot path
+diff_path = path.replace(".avi","_diff.avi") # diff avi path
+meas_path = path.replace(".avi","_meas.avi") # meas avi path
+plot_path = path.replace(".avi","_contrast.png") # contrast plot path
+contrast_csv_path = path.replace(".avi","_contrast.csv") # contrast csv path
+shift_csv_path = path.replace(".avi","_shift.csv") # shift csv path(基準画像と測定画像のシフト量)
 
 frames, fields = open_video(path) # 動画の読み込み 
 frames, fields = remove_first_frames(0, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
 # 基準画像とその他に分割
 basis_frame, frames, original_frames, fields = split_frames(frames, fields)
-frames = align_frames(basis_frame, frames) # 基準・測定画像の位置合わせ
+frames = align_frames(basis_frame, frames, meas_path) # 基準・測定画像の位置合わせ
 max_diff = get_max_diff(basis_frame, frames) # 差分画像の差分の最大値を得る
-frames = get_diff_frames(basis_frame, frames, max_diff, rate, new_path) # 画像の差分を取る
+frames = get_diff_frames(basis_frame, frames, max_diff, rate, diff_path) # 画像の差分を取る
 
 get_coords(basis_frame, path) # コントラスト測定範囲の設定
 contrasts = get_contrast(frames, path) # コントラストの測定
