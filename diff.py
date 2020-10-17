@@ -36,7 +36,7 @@ def split_frames(frames, fields):
 
 def crop_frame(frame):
     h, w = frame.shape[:2]
-    frame = frame[int(h*1/5):int(h*4/5), int(w*1/5):int(w*4/5), :] # 緑色の文字が端にあるので除く
+    frame = frame[int(h*1/6):int(h*5/6),: , :] # 緑色の文字が端にあるので除く
     return frame
 
 def align_frames(basis_frame, frames):
@@ -90,7 +90,7 @@ def get_diff_frames(basis_frame, frames, max_diff, rate, new_path):
     diff_frames = []
     writer = cv2.VideoWriter(new_path,  
                             cv2.VideoWriter_fourcc(*'MJPG'), 
-                            2, basis_frame.shape[:2][::-1]) 
+                            10, basis_frame.shape[:2][::-1]) 
     for frame in frames:
         diff_frame = get_diff_frame(basis_frame, frame, max_diff, rate)        
         diff_frames.append(diff_frame)
@@ -115,7 +115,7 @@ path = sys.argv[2] # 動画のパス
 new_path = path.replace(".avi","_diff.avi") # diff avi path
 plot_path = path.replace(".avi","_contrast.png") # plot path
 
-frames, fields = open_video(path) # 動画の読み込み
+frames, fields = open_video(path) # 動画の読み込み 
 frames, fields = remove_first_frames(0, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
 # 基準画像とその他に分割
 basis_frame, frames, original_frames, fields = split_frames(frames, fields)
