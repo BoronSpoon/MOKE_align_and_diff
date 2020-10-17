@@ -2,8 +2,22 @@ import cv2
 from PIL import Image
 import pytesseract
 import numpy as np
+import multiprocessing as mp
 
-def get_strings(frame):
+def get_strings_multiprocessing(frames):
+    num_processes = mp.cpu_count()
+    print(f"num_processes = {num_processes}")
+    p = mp.Pool(num_processes)
+    fields = p.map(get_string, frames)
+    return fields
+
+def get_strings(frames):
+    fields = []
+    for frame in frames:
+        fields.append(get_string(frame))
+    return fields
+
+def get_string(frame):
     h,w = frame.shape[:2]
     h = int(h/6); w = int(w/2)
     frame = frame[:h,:w,:]
@@ -20,5 +34,4 @@ def get_strings(frame):
     # Character recognition with tesseract
     string = pytesseract.image_to_string(PIL_frame)
     string = float(string.replace(" ","").split("(Oe)")[0])
-    print (string)
     return string

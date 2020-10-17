@@ -1,10 +1,9 @@
 import cv2
 import numpy as np 
-from ocr import get_strings
+from ocr import *
 from plot import *
 import sys
 import math
-import subprocess as sp
 import multiprocessing as mp
 
 # todo
@@ -17,18 +16,16 @@ def open_video(path):
         print("Error opening video stream or file")
 
     frames = []
-    fields = []
     # Read until video is completed
     while(cap.isOpened()):
         # Capture frame-by-frame
         ret, frame = cap.read()
         if ret == True:
             frames.append(frame)
-            fields.append(get_strings(frame))
         else:
             break
     cap.release()
-    return frames, fields
+    return frames
 
 def remove_first_frames(n, frames, fields):
     return frames[n:], fields[n:]
@@ -64,7 +61,6 @@ def align_frames_multiprocessing(basis_frame, frames, meas_path):
                             cv2.VideoWriter_fourcc(*'MJPG'), 
                             10, basis_frame.shape[:2][::-1])
     num_processes = mp.cpu_count()
-    print(f"num_processes = {num_processes}")
     p = mp.Pool(num_processes)
     args = [[basis_frame, frame] for frame in frames]
     rets = p.map(align_frame_map, args)
@@ -165,7 +161,8 @@ if __name__ == "__main__":
     shift_csv_path = path.replace(".avi","_shift.csv") # shift csv path(基準画像と測定画像のシフト量)
     frames_offset_count = 0 # 基準画像にする画像のフレーム
 
-    frames, fields = open_video(path) # 動画の読み込み 
+    frames = open_video(path) # 動画の読み込み 
+    fields = get_strings_multiprocessing(frames) # 磁場の強さをocrで取得
     frames, fields = remove_first_frames(frames_offset_count, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
     # 基準画像とその他に分割
     basis_frame, frames, original_frames, fields = split_frames(frames, fields)
