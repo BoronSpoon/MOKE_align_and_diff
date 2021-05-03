@@ -1,5 +1,6 @@
 # Differential image auto-alignment tool for MOKE microscope (Used for magnetic domain observation)
 (MOKE=Magneto-Optical Kerr effect)
+> This is a tool for a certain MOKE microscope, therefore cannot be directly used for other MOKE microscopes. However, you can edit part of this code to utilize the auto-alignment and differential image generation.
 # Files and its use
 - diff.py
   - Main script
