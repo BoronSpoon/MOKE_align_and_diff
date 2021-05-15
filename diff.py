@@ -6,8 +6,11 @@ import sys
 import math
 import multiprocessing as mp
 
-# todo
-# change white black amplification ratio dynamically
+contrast_types = [
+    "RMS_contrast",
+    "mean_contrast",
+    "mean_intensity"
+    ]
 
 def open_video(path):
     cap = cv2.VideoCapture(path)
@@ -32,9 +35,9 @@ def remove_first_frames(n, frames, fields):
 def split_frames(frames, fields):
     original_frames = frames # 元のframesを退避
     frames = [crop_frame(frame) for frame in frames] # 緑色の文字が端にあるので除く
-    basis_frame = frames[0] # 基準画像
-    frames = frames[1:] # 基準画像以外の画像
-    fields = fields[1:] # framesの枚数に合わせる
+    basis_frame = frames[1] # 基準画像
+    frames = frames[2:] # 基準画像以外の画像
+    fields = fields[2:] # framesの枚数に合わせる
     return basis_frame, frames, original_frames, fields
 
 def crop_frame(frame):
@@ -105,7 +108,10 @@ def align_frame(frame1, frame2):
     criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
 
     # Run the ECC algorithm. The results are stored in warp_matrix.
-    (cc, warp_matrix) = cv2.findTransformECC (frame1_gray,frame2_gray,warp_matrix, warp_mode, criteria, inputMask=None, gaussFiltSize=1)
+    try:
+        (cc, warp_matrix) = cv2.findTransformECC (frame1_gray, frame2_gray, warp_matrix, warp_mode, criteria, inputMask=None, gaussFiltSize=1)
+    except:
+        (cc, warp_matrix) = cv2.findTransformECC (frame1_gray, frame2_gray, warp_matrix, warp_mode, criteria)
 
     # get shift (x,y)
     shift = [round(warp_matrix[0,2]), round(warp_matrix[1,2]), warp_matrix[0,2], warp_matrix[1,2]]
@@ -136,20 +142,21 @@ def get_diff_frames(basis_frame, frames, max_diff, rate, diff_path):
     while (status):
         diff_frames = []
         len_frames = len(frames)
+        basis_frame_min = np.min(basis_frame)
         for count, frame in enumerate(frames):
-            diff_frame = get_diff_frame(basis_frame, frame, max_diff, rate)        
+            diff_frame = get_diff_frame(basis_frame, frame, basis_frame_min, max_diff, rate)        
             diff_frames.append(diff_frame)        
             cv2.imshow(path, diff_frame)
             if count == len_frames -1: # last frame: wait infinitely for "left", "right", "enter"
-                if status is not 0: # break when status = 0
+                if status != 0: # break when status = 0
                     k = cv2.waitKey(0) 
             else:
-                k = cv2.waitKey(33) 
+                k = cv2.waitKey(10) 
             if k in [13, 27]: # "enter" or "esc" key to break
                 status = 0 # break out of loop
                 if count == len_frames -1: 
                     break # if broke at middle, diff_frames will not be fully polulated
-            if status is not 0: # prevent breaking when status = 0
+            if status != 0: # prevent breaking when status = 0
                 if k == ord("w"): # "w" to increment "rate"
                     rate += 5
                     break
@@ -170,32 +177,36 @@ def get_diff_frames(basis_frame, frames, max_diff, rate, diff_path):
     writer.release() 
     return diff_frames
 
-def get_diff_frame(frame1, frame2, max_diff, rate):
-    frame1 = frame1.astype("float32")
-    frame2 = frame2.astype("float32")
-    diff_frame = (frame2/2 - frame1/2) * 127*rate/max_diff + 127 # -127~127 + 127(offset) => 0~255(縁を除く)
+def get_diff_frame(basis_frame, meas_frame, basis_frame_min, max_diff, rate):
+    basis_frame = basis_frame.astype("float32") # reference
+    meas_frame = meas_frame.astype("float32")
+    diff_frame = (meas_frame/2 - basis_frame/2) * 127*rate/max_diff + 127 # -127~127 + 127(offset) => 0~255(縁を除く)
+    diff_frame = 127 - diff_frame/((127 - basis_frame)/(127 - basis_frame_min)) 
     # 255以上と0以下の値をそれぞれ255,0にする。overflowした値は255を法としてしまうため。
     diff_frame = np.where(diff_frame>255, 255, diff_frame)
     diff_frame = np.where(diff_frame<0, 0, diff_frame)
     diff_frame = diff_frame.astype("uint8") # uint8に戻す
     return diff_frame
 
-def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, contrast_csv_path):
+def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path_dict, contrast_csv_path_dict):
     status = 1
     get_coords_setup(basis_frame, path) # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
     while(status):
         status = get_coords(basis_frame, path) # コントラスト測定範囲の設定
-        contrasts = get_contrast(frames, path) # コントラストの測定
-        plot_contrast(fields, contrasts, plot_path) # コントラスト対磁界のプロット
-    contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
+        contrasts = get_contrast(frames, path, contrast_types) # コントラストの測定
+        plot_contrast(fields, contrasts, plot_path_dict) # コントラスト対磁界のプロット
+    contrast2csv(fields, contrasts, contrast_csv_path_dict) # コントラスト対磁界のcsv出力
 
 if __name__ == "__main__":
     rate = float(sys.argv[1]) # 差分画像の白黒の強調具合
     path = sys.argv[2] # 動画のパス
     diff_path = path.replace(".avi","_diff.avi") # diff avi path
     meas_path = path.replace(".avi","_meas.avi") # meas avi path
-    plot_path = path.replace(".avi","_contrast.png") # contrast plot path
-    contrast_csv_path = path.replace(".avi","_contrast.csv") # contrast csv path
+    plot_path_dict = {}
+    contrast_csv_path_dict = {}
+    for contrast_type in contrast_types:
+        plot_path_dict[contrast_type] = path.replace(".avi",f"_{contrast_type}.png") # contrast plot path
+        contrast_csv_path_dict[contrast_type] = path.replace(".avi",f"_{contrast_type}.csv") # contrast csv path
     shift_csv_path = path.replace(".avi","_shift.csv") # shift csv path(基準画像と測定画像のシフト量)
     frames_offset_count = 0 # 基準画像にする画像のフレーム
 
@@ -208,7 +219,7 @@ if __name__ == "__main__":
     shift2csv(shifts, shift_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
     max_diff = get_max_diff(basis_frame, frames) # 差分画像の差分の最大値を得る
     frames = get_diff_frames(basis_frame, frames, max_diff, rate, diff_path) # 画像の差分を取る
-    select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, contrast_csv_path)
+    select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path_dict, contrast_csv_path_dict)
 
     #.destroyAllWindows() 
     print("The video was successfully saved") 

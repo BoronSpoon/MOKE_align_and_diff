@@ -23,6 +23,8 @@ def get_string(frame):
     frame = frame[:h,:w,:]
     # grey-scale the frames (green=255,else=0)
     frame = 255*np.where(frame[:,:,0]==0, 1, 0)*np.where(frame[:,:,1]==255, 1, 0)*np.where(frame[:,:,2]==0, 1, 0)
+    #cv2.imshow("ocr",frame.astype("uint8"))
+    #cv2.waitKey(3000)
     # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     # Do dilation and erosion to eliminate unwanted noises
     kernel = np.ones((1, 1), np.uint8)
@@ -33,5 +35,8 @@ def get_string(frame):
     PIL_frame = Image.fromarray(frame_RGB)
     # Character recognition with tesseract
     string = pytesseract.image_to_string(PIL_frame)
-    string = float(string.replace(" ","").split("(Oe)")[0])
-    return string
+    try:
+        string = float(string.replace(" ","").replace(",",".").split("(Oe)")[0])
+        return string
+    except:
+        return None

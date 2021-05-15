@@ -1,0 +1,35 @@
+@startuml
+box "frame" #LightBlue
+    participant frame
+    participant frame_RGB
+    participant PIL_frame
+end box
+box "strings" #Pink
+    participant string
+end box
+box "return" #LightGreen
+    participant return
+end box
+group get_string()
+    frame->frame: crop (int(h/6), int(w/2))
+    frame->frame: green = 255, else = 0
+    frame->frame: dilate x20, erode x20
+    group cv2 to PIL rgb
+        create frame_RGB
+        frame->frame_RGB: gray to rgb
+        create PIL_frame
+        frame_RGB->PIL_frame: Image.fromarray()
+    end
+    group pytesseract
+        PIL_frame->string: image_to_string()
+    end
+    string->string: replace (" " -> "")
+    string->string: replace ("," -> ".")
+    string->string: split ("(Oe)"[0])
+    group try: float()
+        string->return: string
+    else except:
+        string->return: None
+    end
+end
+@enduml

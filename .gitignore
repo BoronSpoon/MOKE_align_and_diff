@@ -3,8 +3,3 @@
 contrast.png
 *.avi
 offline_packages/*
-Pip*
-pip_do*
-requirements.txt
-tesseract/*
-get_key.py

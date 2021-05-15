@@ -45,8 +45,10 @@ def get_coords(frame, path): # コントラスト測定範囲の設定
             break
     return status
 
-def get_contrast(frames, path):
-    contrasts = []
+def get_contrast(frames, path, contrast_types):
+    contrasts_dict = {}
+    for contrast_type in contrast_types:
+        contrasts_dict[contrast_type] = []
     for frame in frames:
         #print(C.plist)
         x = [min(C.plist[0][1], C.plist[1][1]), max(C.plist[0][1], C.plist[1][1])]
@@ -56,28 +58,37 @@ def get_contrast(frames, path):
         cropped_frame = cropped_frame.astype("float64")
         #cv2.imshow(plot, cropped_frame)
         #cv2.waitKey(100)
-        # RMS contrast
-        RMS_contrast = cropped_frame.std()
-        # mean contrast
-        mean_contrast = 100 * (cropped_frame.max()-cropped_frame.min())/cropped_frame.mean()
-        contrasts.append(RMS_contrast) # use RMS constant
-    return contrasts
+        contrasts = {}
+        contrasts["RMS_contrast"] = cropped_frame.std()
+        contrasts["mean_contrast"] = 100 * (cropped_frame.max()-cropped_frame.min())/cropped_frame.mean()
+        contrasts["mean_intensity"] = cropped_frame.mean()
+        for contrast_type in contrast_types:
+            contrasts_dict[contrast_type].append(contrasts[contrast_type])
+    return contrasts_dict
     
-def plot_contrast(fields, contrasts,plot_path):
-    plt.clf()
-    plt.plot(fields, contrasts)
-    plt.xlabel("Magnetic field intensity (Oe)")
-    plt.ylabel("Contrast")
-    plt.savefig(plot_path)
-    plt.ion()
-    plt.show() # do not block (continue the program even when plot windows is not closed)
-    plt.pause(.001)
+def plot_contrast(fields, contrasts_dict, plot_path_dict):
+    for key in contrasts_dict.keys():
+        contrasts = contrasts_dict[key]
+        plot_path = plot_path_dict[key]
+        plt.clf()
+        fields = [field for field, contrast in zip(fields, contrasts) if contrast != None]
+        contrasts = [contrast for contrast in contrasts if contrast != None]
+        plt.plot(fields, contrasts)
+        plt.xlabel("Magnetic field intensity (Oe)")
+        plt.ylabel(key)
+        plt.savefig(plot_path)
+        plt.ion()
+        plt.show() # do not block (continue the program even when plot windows is not closed)
+        plt.pause(.001)
 
-def contrast2csv(fields, contrasts, contrast_csv_path):
-    with open(contrast_csv_path, "w", newline ="") as f:  
-        writer = csv.writer(f)
-        header = ["field strength (Oe)", "contrast"]
-        writer.writerow(header) # write header
-        for field, contrast in zip(fields,contrasts): # write row by row
-            writer.writerow([field, contrast])
+def contrast2csv(fields, contrasts_dict, contrast_csv_path_dict):
+    for key in contrasts_dict.keys():
+        contrasts = contrasts_dict[key]
+        contrast_csv_path = contrast_csv_path_dict[key]
+        with open(contrast_csv_path, "w", newline ="") as f:  
+            writer = csv.writer(f)
+            header = ["field strength (Oe)", "contrast"]
+            writer.writerow(header) # write header
+            for field, contrast in zip(fields,contrasts): # write row by row
+                writer.writerow([field, contrast])
 
