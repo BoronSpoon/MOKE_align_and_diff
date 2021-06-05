@@ -92,11 +92,11 @@ def align_frames_multiprocessing(basis_frame, frames, meas_path):
     writer = cv2.VideoWriter(meas_path,  
                             cv2.VideoWriter_fourcc(*'RGBA'), # no compression
                             10, basis_frame.shape[:2][::-1])
+    writer.write(basis_frame) # write basis_frame
     num_processes = mp.cpu_count()
     p = mp.Pool(num_processes)
     args = [[basis_frame, frame] for frame in frames]
     rets = p.map(align_frame_map, args)
-    aligned_frames.append(basis_frame) # basis_frameも追加する
     for ret in rets:
         aligned_frames.append(ret[0])
         writer.write(ret[0])
@@ -110,6 +110,7 @@ def align_frames(basis_frame, frames, meas_path):
     writer = cv2.VideoWriter(meas_path,  
                             cv2.VideoWriter_fourcc(*'RGBA'), # no compression
                             10, basis_frame.shape[:2][::-1])
+    writer.write(basis_frame) # write basis_frame
     for frame in frames:
         aligned_frame, shift = align_frame(basis_frame, frame)
         aligned_frames.append(aligned_frame)
@@ -253,7 +254,7 @@ if __name__ == "__main__":
     shifts_csv_path = path.replace(".avi","_shifts.csv") # shifts csv path (基準画像と測定画像のシフト量)
     frames_offset_count = 1 # 基準画像にする画像のフレーム
     frames = open_video(path) # 動画の読み込み 
-    # アライメントを以前にやった場合、その結果を用いる
+    # アライメントを以前に行った場合、その結果を用いる
     processed_before = False
     if (os.path.isfile(meas_path) and os.path.isfile(fields_csv_path) and os.path.isfile(shifts_csv_path)):
         aligned_frames = open_video(meas_path) # アライメント済み動画の読み込み
@@ -265,7 +266,9 @@ if __name__ == "__main__":
                 processed_before = True
                 print("this video has been processed before. Reusing processed data")
                 basis_frame, frames = aligned_frames[0], aligned_frames[1:]
-    # アライメントをやっていない場合
+                fields = fields[1:]
+                shifts = shifts[1:]
+    # アライメントを以前に行っていない場合
     if not processed_before:
         fields = get_strings_multiprocessing(frames) # 磁場の強さをocrで取得
         frames, fields = remove_first_frames(frames_offset_count, frames, fields) # 最初の画像は基準画像なのでH=0の画像ではないようにする。
