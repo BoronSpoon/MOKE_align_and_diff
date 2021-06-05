@@ -61,7 +61,8 @@ def csv2shifts(shifts_csv_path):
     with open(shifts_csv_path, "r", newline ="") as f:  
         reader = csv.reader(f, delimiter=",")
         shifts = []
-        for count, shift0, shift1, shift2, shift3 in enumerate(shifts): # read row by row consisting of (count, shift0~3)
+        reader = reader[1:] # eliminate header
+        for count, shift0, shift1, shift2, shift3 in reader: # read row by row consisting of (count, shift0~3)
             shifts.append([shift0, shift1, shift2, shift3])
         return shifts
 
@@ -77,6 +78,7 @@ def csv2fields(fields_csv_path):
     with open(fields_csv_path, "r", newline ="") as f:
         reader = csv.reader(f, delimiter=",")
         fields = []
+        reader = reader[1:] # eliminate header
         for count, field in reader: # read row by row consisting of (count, field)
             fields.append(field)
         return fields
