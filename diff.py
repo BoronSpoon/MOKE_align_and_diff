@@ -29,18 +29,20 @@ def open_video(path):
         else:
             break
     cap.release()
+    if len(frames) == 0:
+        print("Error path file is empty")
+        return None
     return frames
 
 def remove_first_frames(n, frames, fields):
     return frames[n:], fields[n:]
 
 def split_frames(frames, fields):
-    original_frames = frames # 元のframesを退避
     frames = [crop_frame(frame) for frame in frames] # 緑色の文字が端にあるので除く
     basis_frame = frames[0] # 基準画像
     frames = frames[1:] # 基準画像以外の画像
     fields = fields[1:] # framesの枚数に合わせる
-    return basis_frame, frames, original_frames, fields
+    return basis_frame, frames, fields
 
 def crop_frame(frame):
     h, w = frame.shape[:2]
@@ -56,8 +58,8 @@ def shifts2csv(shifts, shifts_csv_path, frames_offset_count):
             writer.writerow([count, shift[0], shift[1], shift[2], shift[3]])
 
 def csv2shifts(shifts_csv_path):
-    with open(shifts_csv_path, "w", newline ="") as f:  
-        reader = csv.reader(f)
+    with open(shifts_csv_path, "r", newline ="") as f:  
+        reader = csv.reader(f, delimiter=",")
         shifts = []
         for count, shift0, shift1, shift2, shift3 in enumerate(shifts): # read row by row consisting of (count, shift0~3)
             shifts.append([shift0, shift1, shift2, shift3])
@@ -72,8 +74,8 @@ def fields2csv(fields, fields_csv_path, frames_offset_count):
             writer.writerow([count, field])
 
 def csv2fields(fields_csv_path):
-    with open(fields_csv_path, "w", newline ="") as f:
-        reader = csv.reader(f)
+    with open(fields_csv_path, "r", newline ="") as f:
+        reader = csv.reader(f, delimiter=",")
         fields = []
         for count, field in reader: # read row by row consisting of (count, field)
             fields.append(field)
@@ -92,10 +94,11 @@ def align_frames_multiprocessing(basis_frame, frames, meas_path):
     p = mp.Pool(num_processes)
     args = [[basis_frame, frame] for frame in frames]
     rets = p.map(align_frame_map, args)
+    aligned_frames.append(basis_frame) # basis_frameも追加する
     for ret in rets:
         aligned_frames.append(ret[0])
-        shifts.append(ret[1])
         writer.write(ret[0])
+        shifts.append(ret[1])
     writer.release()
     return aligned_frames, shifts
 
@@ -247,24 +250,25 @@ if __name__ == "__main__":
     fields_csv_path = path.replace(".avi","_fields.csv") # fields path (磁場データ)
     shifts_csv_path = path.replace(".avi","_shifts.csv") # shifts csv path (基準画像と測定画像のシフト量)
     frames_offset_count = 1 # 基準画像にする画像のフレーム
-
     frames = open_video(path) # 動画の読み込み 
     # アライメントを以前にやった場合、その結果を用いる
     processed_before = False
-    if (os.path.isfile(meas_path) and os.path.isfile(fields_csv_path) and os.path.isfile(shift_csv_path)):
+    if (os.path.isfile(meas_path) and os.path.isfile(fields_csv_path) and os.path.isfile(shifts_csv_path)):
         aligned_frames = open_video(meas_path) # アライメント済み動画の読み込み
-        fields = csv2fields(fields_csv_path) # 磁場データの読み込み
-        shifts = csv2shifts(shifts_csv_path) # シフトデータの読み込み
-        if np.in1d(aligned_frames[0].ravel(), frames[frames_offset_count].ravel()).all(): # 以前処理された画像と今回処理する画像が同じであるか
-            processed_before = True
-            print("this video has been processed before")
-            frames = aligned_frames
+        if aligned_frames is not None: # meas_frameが空でない場合
+            fields = csv2fields(fields_csv_path) # 磁場データの読み込み
+            shifts = csv2shifts(shifts_csv_path) # シフトデータの読み込み
+            result = cv2.matchTemplate(frames[frames_offset_count], aligned_frames[0], cv2.TM_CCOEFF_NORMED) # 前回の画像と今回の画像の比較
+            if np.any(result>0.99): # 以前処理された画像と今回処理する画像が同じであるか
+                processed_before = True
+                print("this video has been processed before. Reusing processed data")
+                basis_frame, frames = aligned_frames[0], aligned_frames[1:]
     # アライメントをやっていない場合
     if not processed_before:
         fields = get_strings_multiprocessing(frames) # 磁場の強さをocrで取得
-        frames, fields = remove_first_frames(frames_offset_count, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
+        frames, fields = remove_first_frames(frames_offset_count, frames, fields) # 最初の画像は基準画像なのでH=0の画像ではないようにする。
         # 基準画像とその他に分割
-        basis_frame, frames, original_frames, fields = split_frames(frames, fields)
+        basis_frame, frames, fields = split_frames(frames, fields)
         frames, shifts = align_frames_multiprocessing(basis_frame, frames, meas_path) # 基準・測定画像の位置合わせ
     #basis_frame = np.average(np.array(frames), axis=0)# 平均画像を基準画像とする
     shifts2csv(shifts, shifts_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
