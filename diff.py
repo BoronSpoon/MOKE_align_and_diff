@@ -6,6 +6,7 @@ import sys
 import math
 from statistics import mean
 import multiprocessing as mp
+import os
 
 contrast_types = [
     "RMS_contrast",
@@ -46,13 +47,37 @@ def crop_frame(frame):
     frame = frame[int(h*1/6):int(h*5/6),: , :] # 緑色の文字が端にあるので除く
     return frame
 
-def shift2csv(shifts, shift_csv_path, frames_offset_count):
-    with open(shift_csv_path, "w", newline ="") as f:  
+def shifts2csv(shifts, shifts_csv_path, frames_offset_count):
+    with open(shifts_csv_path, "w", newline ="") as f:  
         writer = csv.writer(f)
         header = [f"frame count \n(start at {frames_offset_count + 2}'th frame)", "round(shift_x)", "round(shift_y)", "shift_x", "shift_y"]
         writer.writerow(header) # write header
         for count, shift in enumerate(shifts): # write row by row
             writer.writerow([count, shift[0], shift[1], shift[2], shift[3]])
+
+def csv2shifts(shifts_csv_path):
+    with open(shifts_csv_path, "w", newline ="") as f:  
+        reader = csv.reader(f)
+        shifts = []
+        for count, shift0, shift1, shift2, shift3 in enumerate(shifts): # read row by row consisting of (count, shift0~3)
+            shifts.append([shift0, shift1, shift2, shift3])
+        return shifts
+
+def field2csv(fields, field_csv_path, frames_offset_count):
+    with open(field_csv_path, "w", newline ="") as f:
+        writer = csv.writer(f)
+        header = [f"frame count \n(start at {frames_offset_count + 2}'th frame)", "field (Oe)"]
+        writer.writerow(header) # write header
+        for count, field in enumerate(fields): # write row by row
+            writer.writerow([count, field])
+
+def csv2field(field_csv_path):
+    with open(field_csv_path, "w", newline ="") as f:
+        reader = csv.reader(f)
+        fields = []
+        for count, field in reader: # read row by row consisting of (count, field)
+            fields.append(field)
+        return fields
 
 def align_frame_map(args):
     return align_frame(*args)
@@ -191,12 +216,12 @@ def get_diff_frame(basis_frame, meas_frame, basis_frame_max, mean_diff, min_diff
     basis_frame = basis_frame.astype("float32") # reference
     meas_frame = meas_frame.astype("float32")
     #meas_frame = meas_frame/(basis_frame/basis_frame_max)
-    magnitude = max_diff - min_diff
-    diff_frame = (meas_frame-basis_frame)-min_diff # 0~(max_diff-min_diff)
-    diff_frame = diff_frame * (255*rate/magnitude) # 0~255*rate
+    max_magnitude = max(abs(min_diff - mean_diff), abs(max_diff - mean_diff))
+    diff_frame = ((meas_frame - basis_frame) + (127-mean_diff)) # mean => 127
+    diff_frame = (diff_frame-127) * (127*rate/max_magnitude) + 127 # within -127~127
     # 255以上と0以下の値をそれぞれ255,0にする。overflowした値は255を法としてしまうため。
     diff_frame = np.where(diff_frame>255, 255, diff_frame)
-    #diff_frame = np.where(diff_frame<0, 0, diff_frame)
+    diff_frame = np.where(diff_frame<0, 0, diff_frame)
     diff_frame = diff_frame.astype("uint8") # uint8に戻す
     return diff_frame
 
@@ -219,20 +244,32 @@ if __name__ == "__main__":
     for contrast_type in contrast_types:
         plot_path_dict[contrast_type] = path.replace(".avi",f"_{contrast_type}.png") # contrast plot path
         contrast_csv_path_dict[contrast_type] = path.replace(".avi",f"_{contrast_type}.csv") # contrast csv path
-    shift_csv_path = path.replace(".avi","_shift.csv") # shift csv path(基準画像と測定画像のシフト量)
+    fields_csv_path = path.replace(".avi","_fields.csv") # fields path (磁場データ)
+    shifts_csv_path = path.replace(".avi","_shifts.csv") # shifts csv path (基準画像と測定画像のシフト量)
     frames_offset_count = 1 # 基準画像にする画像のフレーム
 
     frames = open_video(path) # 動画の読み込み 
     # アライメントを以前にやった場合、その結果を用いる
-    # aligned_frames = open_video(path) # アライメント済み動画の読み込み
-    fields = get_strings_multiprocessing(frames) # 磁場の強さをocrで取得
-    frames, fields = remove_first_frames(frames_offset_count, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
-    # 基準画像とその他に分割
-    basis_frame, frames, original_frames, fields = split_frames(frames, fields)
-    frames, shifts = align_frames_multiprocessing(basis_frame, frames, meas_path) # 基準・測定画像の位置合わせ
+    processed_before = False
+    if (os.path.isfile(meas_path) and os.path.isfile(fields_path) and os.path.isfile(shift_csv_path)):
+        aligned_frames = open_video(meas_path) # アライメント済み動画の読み込み
+        fields = csv2fields(fields_csv_path) # 磁場データの読み込み
+        shifts = csv2shifts(shifts_csv_path) # シフトデータの読み込み
+        if np.in1d(aligned_frames[0].ravel(), frames[frames_offset_count].ravel()).all(): # 以前処理された画像と今回処理する画像が同じであるか
+            processed_before = True
+            print("this video has been processed before")
+            frames = aligned_frames
+    # アライメントをやっていない場合
+    if not processed_before:
+        fields = get_strings_multiprocessing(frames) # 磁場の強さをocrで取得
+        frames, fields = remove_first_frames(frames_offset_count, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
+        # 基準画像とその他に分割
+        basis_frame, frames, original_frames, fields = split_frames(frames, fields)
+        frames, shifts = align_frames_multiprocessing(basis_frame, frames, meas_path) # 基準・測定画像の位置合わせ
     #basis_frame = np.average(np.array(frames), axis=0)# 平均画像を基準画像とする
-    shift2csv(shifts, shift_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
-    mean_diff, min_diff, max_diff = get_mean_min_max_diff(basis_frame, frames) # 差分画像の差分のmean,最大値を得る
+    shifts2csv(shifts, shifts_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
+    fields2csv(fields, fields_csv_path, frames_offset_count) # 磁場データをcsvに出力
+    mean_diff, min_diff, max_diff = get_mean_min_max_diff(basis_frame, frames) # 差分画像の差分のmean,min,maxを得る
     diff_frames = get_diff_frames(basis_frame, frames, mean_diff, min_diff, max_diff, rate, diff_path) # 画像の差分を取る
     select_region_and_get_contrast(diff_frames, fields, path, plot_path_dict, contrast_csv_path_dict)
 
