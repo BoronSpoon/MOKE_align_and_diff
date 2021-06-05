@@ -88,7 +88,7 @@ def align_frames_multiprocessing(basis_frame, frames, meas_path):
     aligned_frames = []
     shifts = []
     writer = cv2.VideoWriter(meas_path,  
-                            cv2.VideoWriter_fourcc(*'MJPG'), 
+                            cv2.VideoWriter_fourcc(*'RGBA'), # no compression
                             10, basis_frame.shape[:2][::-1])
     num_processes = mp.cpu_count()
     p = mp.Pool(num_processes)
@@ -106,7 +106,7 @@ def align_frames(basis_frame, frames, meas_path):
     aligned_frames = []
     shifts = []
     writer = cv2.VideoWriter(meas_path,  
-                            cv2.VideoWriter_fourcc(*'MJPG'), 
+                            cv2.VideoWriter_fourcc(*'RGBA'), # no compression
                             10, basis_frame.shape[:2][::-1])
     for frame in frames:
         aligned_frame, shift = align_frame(basis_frame, frame)
