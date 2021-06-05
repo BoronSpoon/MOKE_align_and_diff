@@ -223,8 +223,9 @@ def get_diff_frame(basis_frame, meas_frame, basis_frame_max, mean_diff, min_diff
     meas_frame = meas_frame.astype("float32")
     #meas_frame = meas_frame/(basis_frame/basis_frame_max)
     max_magnitude = max(abs(min_diff - mean_diff), abs(max_diff - mean_diff))
-    diff_frame = ((meas_frame - basis_frame) + (127-mean_diff)) # mean => 127
-    diff_frame = (diff_frame-127) * (127*rate/max_magnitude) + 127 # within -127~127
+    diff_frame = (meas_frame - basis_frame) - mean_diff # mean -> 0
+    #diff_frame = diff_frame/basis_frame
+    diff_frame = diff_frame * (127*rate/max_magnitude) + 127 # -127~127 + 127
     # 255以上と0以下の値をそれぞれ255,0にする。overflowした値は255を法としてしまうため。
     diff_frame = np.where(diff_frame>255, 255, diff_frame)
     diff_frame = np.where(diff_frame<0, 0, diff_frame)
