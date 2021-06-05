@@ -4,6 +4,7 @@ from ocr import *
 from plot import *
 import sys
 import math
+from statistics import mean
 import multiprocessing as mp
 
 contrast_types = [
@@ -35,6 +36,9 @@ def remove_first_frames(n, frames, fields):
 def split_frames(frames, fields):
     original_frames = frames # 元のframesを退避
     frames = [crop_frame(frame) for frame in frames] # 緑色の文字が端にあるので除く
+    #basis_frame = frames[0] # 基準画像
+    #frames = frames[1:] # 基準画像以外の画像
+    #fields = fields[1:] # framesの枚数に合わせる
     basis_frame = frames[1] # 基準画像
     frames = frames[2:] # 基準画像以外の画像
     fields = fields[2:] # framesの枚数に合わせる
@@ -120,19 +124,27 @@ def align_frame(frame1, frame2):
     frame2_aligned = cv2.warpAffine(frame2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
     return frame2_aligned, shift
 
-def get_max_diff(basis_frame, frames):
-    diffs = []
+def get_mean_min_max_diff(basis_frame, frames):
+    mean_diffs = []
+    min_diffs = []
+    max_diffs = []
     h, w = basis_frame.shape[:2]
     basis_frame = basis_frame[20:h-20, 20:w-20, :] # avoid edge black color due to alignment
+    basis_frame_max = np.max(basis_frame)
     for frame in frames:
         frame = frame[20:h-20, 20:w-20, :] # avoid edge black color due to alignment
         basis_frame = basis_frame.astype("float32") # uint8で -1=255 になるのを防ぐ
         frame = frame.astype("float32")
-        diff = np.max(np.abs(frame/2 - basis_frame/2)) # 差分画像の最大値
-        diffs.append(diff)
-    return max(diffs)
+        #frame = frame/(basis_frame/basis_frame_max)
+        mean_diff = np.mean(frame - basis_frame) # 差分画像のmean
+        min_diff = np.min(frame - basis_frame) # 差分画像のmin
+        max_diff = np.max(frame - basis_frame) # 差分画像のmax
+        mean_diffs.append(mean_diff)
+        min_diffs.append(min_diff)
+        max_diffs.append(max_diff)
+    return mean(mean_diffs), min(min_diffs), max(max_diffs)
 
-def get_diff_frames(basis_frame, frames, max_diff, rate, diff_path):
+def get_diff_frames(basis_frame, frames, mean_diff, min_diff, max_diff, rate, diff_path):
     writer = cv2.VideoWriter(diff_path,  
                             cv2.VideoWriter_fourcc(*'MJPG'), 
                             10, basis_frame.shape[:2][::-1]) 
@@ -142,9 +154,9 @@ def get_diff_frames(basis_frame, frames, max_diff, rate, diff_path):
     while (status):
         diff_frames = []
         len_frames = len(frames)
-        basis_frame_min = np.min(basis_frame)
+        basis_frame_max = np.max(basis_frame)
         for count, frame in enumerate(frames):
-            diff_frame = get_diff_frame(basis_frame, frame, basis_frame_min, max_diff, rate)        
+            diff_frame = get_diff_frame(basis_frame, frame, basis_frame_max, mean_diff, min_diff, max_diff, rate)        
             diff_frames.append(diff_frame)        
             cv2.imshow(path, diff_frame)
             if count == len_frames -1: # last frame: wait infinitely for "left", "right", "enter"
@@ -177,11 +189,14 @@ def get_diff_frames(basis_frame, frames, max_diff, rate, diff_path):
     writer.release() 
     return diff_frames
 
-def get_diff_frame(basis_frame, meas_frame, basis_frame_min, max_diff, rate):
+def get_diff_frame(basis_frame, meas_frame, basis_frame_max, mean_diff, min_diff, max_diff, rate):
     basis_frame = basis_frame.astype("float32") # reference
     meas_frame = meas_frame.astype("float32")
-    diff_frame = (meas_frame/2 - basis_frame/2) * 127*rate/max_diff + 127 # -127~127 + 127(offset) => 0~255(縁を除く)
-    diff_frame = 127 - diff_frame/((127 - basis_frame)/(127 - basis_frame_min)) 
+    #meas_frame = meas_frame/(basis_frame/basis_frame_max)
+    #print(mean_diff, min_diff, max_diff)
+    max_magnitude = max(abs(min_diff - mean_diff), abs(max_diff - mean_diff))
+    diff_frame = ((meas_frame - basis_frame) + (127-mean_diff)) # mean => 127
+    diff_frame = (diff_frame-127) * (127*rate/max_magnitude) + 127 # within -127~127
     # 255以上と0以下の値をそれぞれ255,0にする。overflowした値は255を法としてしまうため。
     diff_frame = np.where(diff_frame>255, 255, diff_frame)
     diff_frame = np.where(diff_frame<0, 0, diff_frame)
@@ -192,7 +207,7 @@ def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path_
     status = 1
     get_coords_setup(basis_frame, path) # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
     while(status):
-        status = get_coords(basis_frame, path) # コントラスト測定範囲の設定
+        status = get_coords(frames[0]-basis_frame, path) # コントラスト測定範囲の設定
         contrasts = get_contrast(frames, path, contrast_types) # コントラストの測定
         plot_contrast(fields, contrasts, plot_path_dict) # コントラスト対磁界のプロット
     contrast2csv(fields, contrasts, contrast_csv_path_dict) # コントラスト対磁界のcsv出力
@@ -216,9 +231,10 @@ if __name__ == "__main__":
     # 基準画像とその他に分割
     basis_frame, frames, original_frames, fields = split_frames(frames, fields)
     frames, shifts = align_frames_multiprocessing(basis_frame, frames, meas_path) # 基準・測定画像の位置合わせ
+    #basis_frame = np.average(np.array(frames), axis=0)# 平均画像を基準画像とする
     shift2csv(shifts, shift_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
-    max_diff = get_max_diff(basis_frame, frames) # 差分画像の差分の最大値を得る
-    frames = get_diff_frames(basis_frame, frames, max_diff, rate, diff_path) # 画像の差分を取る
+    mean_diff, min_diff, max_diff = get_mean_min_max_diff(basis_frame, frames) # 差分画像の差分のmean,最大値を得る
+    frames = get_diff_frames(basis_frame, frames, mean_diff, min_diff, max_diff, rate, diff_path) # 画像の差分を取る
     select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path_dict, contrast_csv_path_dict)
 
     #.destroyAllWindows() 
