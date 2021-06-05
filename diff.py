@@ -63,16 +63,16 @@ def csv2shifts(shifts_csv_path):
             shifts.append([shift0, shift1, shift2, shift3])
         return shifts
 
-def field2csv(fields, field_csv_path, frames_offset_count):
-    with open(field_csv_path, "w", newline ="") as f:
+def fields2csv(fields, fields_csv_path, frames_offset_count):
+    with open(fields_csv_path, "w", newline ="") as f:
         writer = csv.writer(f)
         header = [f"frame count \n(start at {frames_offset_count + 2}'th frame)", "field (Oe)"]
         writer.writerow(header) # write header
         for count, field in enumerate(fields): # write row by row
             writer.writerow([count, field])
 
-def csv2field(field_csv_path):
-    with open(field_csv_path, "w", newline ="") as f:
+def csv2fields(fields_csv_path):
+    with open(fields_csv_path, "w", newline ="") as f:
         reader = csv.reader(f)
         fields = []
         for count, field in reader: # read row by row consisting of (count, field)
@@ -251,7 +251,7 @@ if __name__ == "__main__":
     frames = open_video(path) # 動画の読み込み 
     # アライメントを以前にやった場合、その結果を用いる
     processed_before = False
-    if (os.path.isfile(meas_path) and os.path.isfile(fields_path) and os.path.isfile(shift_csv_path)):
+    if (os.path.isfile(meas_path) and os.path.isfile(fields_csv_path) and os.path.isfile(shift_csv_path)):
         aligned_frames = open_video(meas_path) # アライメント済み動画の読み込み
         fields = csv2fields(fields_csv_path) # 磁場データの読み込み
         shifts = csv2shifts(shifts_csv_path) # シフトデータの読み込み
