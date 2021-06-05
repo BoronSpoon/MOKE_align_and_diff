@@ -36,12 +36,9 @@ def remove_first_frames(n, frames, fields):
 def split_frames(frames, fields):
     original_frames = frames # 元のframesを退避
     frames = [crop_frame(frame) for frame in frames] # 緑色の文字が端にあるので除く
-    #basis_frame = frames[0] # 基準画像
-    #frames = frames[1:] # 基準画像以外の画像
-    #fields = fields[1:] # framesの枚数に合わせる
-    basis_frame = frames[1] # 基準画像
-    frames = frames[2:] # 基準画像以外の画像
-    fields = fields[2:] # framesの枚数に合わせる
+    basis_frame = frames[0] # 基準画像
+    frames = frames[1:] # 基準画像以外の画像
+    fields = fields[1:] # framesの枚数に合わせる
     return basis_frame, frames, original_frames, fields
 
 def crop_frame(frame):
@@ -223,9 +220,11 @@ if __name__ == "__main__":
         plot_path_dict[contrast_type] = path.replace(".avi",f"_{contrast_type}.png") # contrast plot path
         contrast_csv_path_dict[contrast_type] = path.replace(".avi",f"_{contrast_type}.csv") # contrast csv path
     shift_csv_path = path.replace(".avi","_shift.csv") # shift csv path(基準画像と測定画像のシフト量)
-    frames_offset_count = 0 # 基準画像にする画像のフレーム
+    frames_offset_count = 1 # 基準画像にする画像のフレーム
 
     frames = open_video(path) # 動画の読み込み 
+    # アライメントを以前にやった場合、その結果を用いる
+    # aligned_frames = open_video(path) # アライメント済み動画の読み込み
     fields = get_strings_multiprocessing(frames) # 磁場の強さをocrで取得
     frames, fields = remove_first_frames(frames_offset_count, frames, fields)# 最初の画像は基準画像なのでH=0の画像ではないようにする。
     # 基準画像とその他に分割
