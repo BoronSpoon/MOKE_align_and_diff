@@ -61,7 +61,7 @@ def csv2shifts(shifts_csv_path):
     with open(shifts_csv_path, "r", newline ="") as f:  
         reader = csv.reader(f, delimiter=",")
         shifts = []
-        reader = reader[1:] # eliminate header
+        reader = [i for i in reader][1:] # eliminate header
         for count, shift0, shift1, shift2, shift3 in reader: # read row by row consisting of (count, shift0~3)
             shifts.append([shift0, shift1, shift2, shift3])
         return shifts
@@ -78,7 +78,7 @@ def csv2fields(fields_csv_path):
     with open(fields_csv_path, "r", newline ="") as f:
         reader = csv.reader(f, delimiter=",")
         fields = []
-        reader = reader[1:] # eliminate header
+        reader = [i for i in reader][1:] # eliminate header
         for count, field in reader: # read row by row consisting of (count, field)
             fields.append(field)
         return fields
@@ -129,6 +129,7 @@ def align_frame(frame1, frame2):
 
     # Define the motion model
     warp_mode = cv2.MOTION_TRANSLATION # only xy_shift
+    #warp_mode = cv2.MOTION_EUCLIDEAN # only xy_shift and rotation
     warp_matrix = np.eye(2, 3, dtype=np.float32)
     number_of_iterations = 5000
 
@@ -172,11 +173,39 @@ def get_mean_min_max_diff(basis_frame, frames):
         max_diffs.append(max_diff)
     return mean(mean_diffs), min(min_diffs), max(max_diffs)
 
-def get_diff_frames(basis_frame, frames, mean_diff, min_diff, max_diff, rate, diff_path):
+def get_hist(fig, line1, diff_frame):
+    hist = cv2.calcHist([diff_frame], [0], None, [256], [0, 255])
+    hist /= hist.sum() # normalization 
+    plt.ylim(0,hist.max()) 
+    line1.set_ydata(hist.ravel()) # update data
+    fig.canvas.draw() # redraw the canvas)
+    hist_frame = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8) # convert canvas to image
+    hist_frame = hist_frame.reshape(fig.canvas.get_width_height()[::-1] + (3,)) # resize
+    hist_frame = cv2.cvtColor(hist_frame, cv2.COLOR_RGB2BGR) # img is rgb, convert to opencv's default bgr
+    return hist_frame
+
+def get_diff_frames(basis_frame, frames, mean_diff, min_diff, max_diff, rate, diff_path, hist_path):
     print(mean_diff, min_diff, max_diff)
-    writer = cv2.VideoWriter(diff_path,  
+    diff_writer = cv2.VideoWriter(diff_path,  
                             cv2.VideoWriter_fourcc(*'MJPG'), 
-                            10, basis_frame.shape[:2][::-1]) 
+                            10, basis_frame.shape[:2][::-1])
+
+    # prepare hist figures
+    fig = plt.figure()
+    x = np.arange(0,256)
+    y = np.zeros(256)
+    line1, = plt.plot(x, y)
+    plt.title("Grayscale Histogram (Normalized)")
+    plt.xlabel("Bins")
+    plt.ylabel("% of Pixels")
+
+    hist = cv2.calcHist([basis_frame], [0], None, [256], [0, 256])
+    line1.set_ydata(hist.ravel()) # update data
+    fig.canvas.draw() # redraw the canvas                   
+    hist_shape = fig.canvas.get_width_height()
+    hist_writer = cv2.VideoWriter(hist_path,  
+                            cv2.VideoWriter_fourcc(*'MJPG'), 
+                            10, hist_shape)
     status = 1
     print("press wasd to change 'rate'")
     print("press Enter, Esc to exit")
@@ -214,8 +243,11 @@ def get_diff_frames(basis_frame, frames, mean_diff, min_diff, max_diff, rate, di
         print(f"rate={int(rate)}")
             
     for diff_frame in diff_frames:
-        writer.write(diff_frame)
-    writer.release() 
+        hist_frame = get_hist(fig, line1, diff_frame) # plot hist and write to avi
+        diff_writer.write(diff_frame)
+        hist_writer.write(hist_frame)
+    diff_writer.release() 
+    hist_writer.release() 
     return diff_frames
 
 def get_diff_frame(basis_frame, meas_frame, basis_frame_max, mean_diff, min_diff, max_diff, rate):
@@ -225,7 +257,8 @@ def get_diff_frame(basis_frame, meas_frame, basis_frame_max, mean_diff, min_diff
     max_magnitude = max(abs(min_diff - mean_diff), abs(max_diff - mean_diff))
     diff_frame = (meas_frame - basis_frame) - mean_diff # mean -> 0
     #diff_frame = diff_frame/basis_frame
-    diff_frame = diff_frame * (127*rate/max_magnitude) + 127 # -127~127 + 127
+    #diff_frame = diff_frame * (127*rate/max_magnitude) + 127 # -127~127 + 127
+    diff_frame = diff_frame*rate + 127
     # 255以上と0以下の値をそれぞれ255,0にする。overflowした値は255を法としてしまうため。
     diff_frame = np.where(diff_frame>255, 255, diff_frame)
     diff_frame = np.where(diff_frame<0, 0, diff_frame)
@@ -246,6 +279,7 @@ if __name__ == "__main__":
     path = sys.argv[2] # 動画のパス
     diff_path = path.replace(".avi","_diff.avi") # diff avi path
     meas_path = path.replace(".avi","_meas.avi") # meas avi path
+    hist_path = path.replace(".avi","_hist.avi") # hist avi path
     plot_path_dict = {}
     contrast_csv_path_dict = {}
     for contrast_type in contrast_types:
@@ -267,8 +301,6 @@ if __name__ == "__main__":
                 processed_before = True
                 print("this video has been processed before. Reusing processed data")
                 basis_frame, frames = aligned_frames[0], aligned_frames[1:]
-                fields = fields[1:]
-                shifts = shifts[1:]
     # アライメントを以前に行っていない場合
     if not processed_before:
         fields = get_strings_multiprocessing(frames) # 磁場の強さをocrで取得
@@ -276,11 +308,11 @@ if __name__ == "__main__":
         # 基準画像とその他に分割
         basis_frame, frames, fields = split_frames(frames, fields)
         frames, shifts = align_frames_multiprocessing(basis_frame, frames, meas_path) # 基準・測定画像の位置合わせ
-    #basis_frame = np.average(np.array(frames), axis=0)# 平均画像を基準画像とする
-    shifts2csv(shifts, shifts_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
-    fields2csv(fields, fields_csv_path, frames_offset_count) # 磁場データをcsvに出力
+        #basis_frame = np.average(np.array(frames), axis=0)# 平均画像を基準画像とする
+        shifts2csv(shifts, shifts_csv_path, frames_offset_count) # アライメントの際のオフセット(x,y)をcsvに出力
+        fields2csv(fields, fields_csv_path, frames_offset_count) # 磁場データをcsvに出力
     mean_diff, min_diff, max_diff = get_mean_min_max_diff(basis_frame, frames) # 差分画像の差分のmean,min,maxを得る
-    diff_frames = get_diff_frames(basis_frame, frames, mean_diff, min_diff, max_diff, rate, diff_path) # 画像の差分を取る
+    diff_frames = get_diff_frames(basis_frame, frames, mean_diff, min_diff, max_diff, rate, diff_path, hist_path) # 画像の差分を取る
     select_region_and_get_contrast(diff_frames, fields, path, plot_path_dict, contrast_csv_path_dict)
 
     #.destroyAllWindows() 
