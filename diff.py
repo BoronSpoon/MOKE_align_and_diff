@@ -63,6 +63,10 @@ def csv2shifts(shifts_csv_path):
         shifts = []
         reader = [i for i in reader][1:] # eliminate header
         for count, shift0, shift1, shift2, shift3 in reader: # read row by row consisting of (count, shift0~3)
+            shift0 = float(shift0)
+            shift1 = float(shift1)
+            shift2 = float(shift2)
+            shift3 = float(shift3)
             shifts.append([shift0, shift1, shift2, shift3])
         return shifts
 
@@ -80,6 +84,7 @@ def csv2fields(fields_csv_path):
         fields = []
         reader = [i for i in reader][1:] # eliminate header
         for count, field in reader: # read row by row consisting of (count, field)
+            field = float(field)
             fields.append(field)
         return fields
 
@@ -266,6 +271,7 @@ def get_diff_frame(basis_frame, meas_frame, basis_frame_max, mean_diff, min_diff
     return diff_frame
 
 def select_region_and_get_contrast(diff_frames, fields, path, plot_path_dict, contrast_csv_path_dict):
+    plt.clf()
     status = 1
     get_coords_setup(diff_frames[0], path) # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
     while(status):
