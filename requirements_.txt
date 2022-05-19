@@ -1,0 +1,6 @@
+opencv-contrib-python = "*"
+numpy = "*"
+matplotlib = "*"
+pytesseract = "*"
+pillow = "*"
+pip-download = "*"

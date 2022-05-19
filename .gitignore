@@ -1,0 +1,8 @@
+.venv/*
+.vscode/*
+contrast.png
+*.avi
+offline_packages/*
+*.pyc
+*.jpg
+
