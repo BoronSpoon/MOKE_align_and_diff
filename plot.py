@@ -66,21 +66,27 @@ def get_contrast(frames, path):
         contrasts.append(mean_pixel) # use pixel intensity
     return contrasts
     
-def save_contrast(fields, contrasts,plot_path):
+def save_contrast(fig, axes, fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path):
     plt.clf()
     plt.plot(fields, contrasts)
     plt.xlabel("Magnetic field intensity (Oe)")
     plt.ylabel("Contrast")
     plt.savefig(plot_path)
-    plt.ion()
-    plt.show() # do not block (continue the program even when plot windows is not closed)
-    plt.pause(.001)
-    
-def plot_contrast(fields, contrasts,plot_path):
     plt.clf()
-    plt.plot(fields, contrasts)
+    plt.plot(fields, corrected_contrasts)
     plt.xlabel("Magnetic field intensity (Oe)")
-    plt.ylabel("Contrast")
+    plt.ylabel("Corrected contrast")
+    plt.savefig(corrected_plot_path)
+    
+def plot_contrast(fig, axes, fields, contrasts, corrected_contrasts):
+    axes[0].cla()
+    axes[1].cla()
+    axes[0].plot(fields, contrasts)
+    axes[0].set_xlabel("Magnetic field intensity (Oe)")
+    axes[0].set_ylabel("Contrast")
+    axes[1].plot(fields, corrected_contrasts)
+    axes[1].set_xlabel("Magnetic field intensity (Oe)")
+    axes[1].set_ylabel("Contrast")
     plt.ion()
     plt.show() # do not block (continue the program even when plot windows is not closed)
     plt.pause(.001)

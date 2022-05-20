@@ -315,7 +315,7 @@ def get_diff_frame(frame1, frame2, max_diff, rate):
     diff_frame = diff_frame.astype("uint8") # uint8に戻す
     return diff_frame
 
-def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, contrast_csv_path):
+def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, corrected_plot_path, contrast_csv_path):
     """コントラストを得る領域を選択
 
     Args:
@@ -328,12 +328,14 @@ def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path,
     """
     status = True
     get_coords_setup(basis_frame, path) # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
+    fig, axes = plt.subplots(1, 2, figsize=(9,5), tight_layout=True)
     while(status):
         status = get_coords(basis_frame, path) # コントラスト測定範囲の設定
         contrasts = get_contrast(frames, path) # コントラストの測定
-        plot_contrast(fields, contrasts, plot_path) # コントラスト対磁界のプロット
+        corrected_contrasts = contrasts
+        plot_contrast(fig, axes, fields, contrasts, corrected_contrasts) # コントラスト対磁界のプロット
     if contrast_csv_path is not None: # 文字認識が行われている場合
-        save_contrast(fields, contrasts, plot_path) # コントラスト対磁界のファイル保存
+        save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path) # コントラスト対磁界のファイル保存
         contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
 
 if __name__ == "__main__":
@@ -350,9 +352,11 @@ if __name__ == "__main__":
     
     if ocr_flag == True:
         plot_path = path.replace(".avi","_contrast.png") # contrast plot path
+        corrected_plot_path = path.replace(".avi","_corrected_contrast.png") # contrast plot path
         contrast_csv_path = path.replace(".avi","_contrast.csv") # contrast csv path
     else: # 文字認識を行わない場合
         plot_path = None
+        corrected_plot_path = path.replace(".avi","_corrected_contrast.png") # contrast plot path
         contrast_csv_path = None
     diff_path = path.replace(".avi","_diff.avi") # diff avi path
     meas_path = path.replace(".avi","_meas.avi") # meas avi path
@@ -392,7 +396,7 @@ if __name__ == "__main__":
     write_frames_to_avi(aligned_frames, meas_path)
     write_frames_to_avi(diff_frames, diff_path)
     if ocr_flag == True:
-        select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, contrast_csv_path) # contrast on diff_frame -> meas_frame
+        select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, corrected_plot_path, contrast_csv_path) # contrast on diff_frame -> meas_frame
 
     #.destroyAllWindows() 
     print("The video was successfully saved") 
