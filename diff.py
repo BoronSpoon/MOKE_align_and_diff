@@ -328,16 +328,10 @@ def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path,
     """
     status = True
     get_coords_setup(basis_frame, path) # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
-    fig, ax = plt.subplots() # プロットする領域を用意
-    fig.canvas.draw()
-    bg = fig.canvas.copy_from_bbox(ax.bbox)
-    count = 0 # 1回目のプロットで別の操作をするためのカウンター
-    line = None # プロットに使う変数
     while(status):
         status = get_coords(basis_frame, path) # コントラスト測定範囲の設定
         contrasts = get_contrast(frames, path) # コントラストの測定
-        line = plot_contrast(line, count, fig, ax, bg, fields, contrasts, plot_path) # コントラスト対磁界のプロット
-        count += 1
+        plot_contrast(fields, contrasts, plot_path) # コントラスト対磁界のプロット
     if contrast_csv_path is not None: # 文字認識が行われている場合
         save_contrast(fields, contrasts, plot_path) # コントラスト対磁界のファイル保存
         contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
