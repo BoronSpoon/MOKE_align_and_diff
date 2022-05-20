@@ -66,7 +66,7 @@ def get_contrast(frames, path):
         contrasts.append(mean_pixel) # use pixel intensity
     return contrasts
     
-def save_contrast(fig, axes, fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path):
+def save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path):
     plt.clf()
     plt.plot(fields, contrasts)
     plt.xlabel("Magnetic field intensity (Oe)")

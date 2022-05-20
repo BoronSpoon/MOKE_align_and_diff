@@ -6,6 +6,7 @@ from plot import *
 import sys
 import math
 import multiprocessing as mp
+from matplotlib.widgets import SpanSelector
 
 def open_video(path):
     """動画を読み込み
@@ -315,6 +316,25 @@ def get_diff_frame(frame1, frame2, max_diff, rate):
     diff_frame = diff_frame.astype("uint8") # uint8に戻す
     return diff_frame
 
+def select_hysterisis_region(xmin, xmax):
+    global hystersis_region_list
+    hystersis_region_list.append([xmin, xmax])
+
+def correct_hysterisis(fields_, contrasts_, hystersis_region_list):
+    fields = np.array(fields_)
+    contrasts = np.array(contrasts_)
+    if len(hystersis_region_list) == 0:
+        slope = 0
+    else:
+        slopes = []
+        for hysterisis_region in hystersis_region_list:
+            cropped_fields = fields[np.where((hysterisis_region[0]<fields)|(fields<hysterisis_region[1]))]
+            cropped_contrasts = contrasts[np.where((hysterisis_region[0]<fields)|(fields<hysterisis_region[1]))]
+            slopes.append(np.polyfit(cropped_fields,cropped_contrasts,1)[0])
+        slope = sum(slopes)/len(slopes)
+    corrected_contrasts = contrasts - fields*slope
+    return list(corrected_contrasts)
+
 def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, corrected_plot_path, contrast_csv_path):
     """コントラストを得る領域を選択
 
@@ -328,11 +348,12 @@ def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path,
     """
     status = True
     get_coords_setup(basis_frame, path) # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
-    fig, axes = plt.subplots(1, 2, figsize=(9,5), tight_layout=True)
+    fig, axes = plt.subplots(1, 2, figsize=(9,5), tight_layout=True) # 2つ(axes[0],axes[1])のsubplotを作る
+    span = SpanSelector(axes[0], select_hysterisis_region, 'horizontal', useblit=True, rectprops=dict(alpha=0.5, facecolor='red')) # axes[0]の領域を選択できるようにする
     while(status):
         status = get_coords(basis_frame, path) # コントラスト測定範囲の設定
         contrasts = get_contrast(frames, path) # コントラストの測定
-        corrected_contrasts = contrasts
+        corrected_contrasts = correct_hysterisis(fields, contrasts, hystersis_region_list) # コントラストの傾き補正
         plot_contrast(fig, axes, fields, contrasts, corrected_contrasts) # コントラスト対磁界のプロット
     if contrast_csv_path is not None: # 文字認識が行われている場合
         save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path) # コントラスト対磁界のファイル保存
@@ -373,6 +394,7 @@ if __name__ == "__main__":
     first_basis_frame = basis_frame # 最初の基準画像を退避
     aligned_frames = []
     shifts = []
+    hystersis_region_list = [] # ヒステリシスの補正に使う領域のリスト
     basis_frame_shift = [0, 0, 0, 0] # 「各グループのbasis frame」の「一番最初のbasis frame」から見たshift
     group_frame_count = len(frames) # number of total frames (dont split frames)
     #group_frame_count = 10 # number of frames in group
