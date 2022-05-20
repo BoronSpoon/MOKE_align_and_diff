@@ -3,6 +3,7 @@ import csv
 import numpy as np
 import cv2
 import config as C
+import matplotlib
 
 def onMouse(event, x, y, flag, params):
     img1, img2 = params
@@ -78,12 +79,15 @@ def save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_p
     plt.ylabel("Corrected contrast")
     plt.savefig(corrected_plot_path)
     
-def plot_contrast(fig, ax, fields, contrasts, corrected_contrasts):
+def plot_contrast(fig, ax, fields, contrasts, corrected_contrasts, hysterisis_region_list):
     ax.cla()
     ax.plot(fields, contrasts)
     ax.plot(fields, corrected_contrasts)
     ax.set_xlabel("Magnetic field intensity (Oe)")
     ax.set_ylabel("Contrast")
+    y_min, y_max = ax.get_ylim()
+    for hysterisis_region in hysterisis_region_list:
+        ax.add_patch(matplotlib.patches.Rectangle((hysterisis_region[0], y_min), hysterisis_region[1]-hysterisis_region[0], y_max-y_min, color="red", alpha=0.2))
     plt.show() # do not block (continue the program even when plot windows is not closed)
     plt.pause(.001)
 
