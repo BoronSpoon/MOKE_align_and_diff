@@ -78,16 +78,12 @@ def save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_p
     plt.ylabel("Corrected contrast")
     plt.savefig(corrected_plot_path)
     
-def plot_contrast(fig, axes, fields, contrasts, corrected_contrasts):
-    axes[0].cla()
-    axes[1].cla()
-    axes[0].plot(fields, contrasts)
-    axes[0].set_xlabel("Magnetic field intensity (Oe)")
-    axes[0].set_ylabel("Contrast")
-    axes[1].plot(fields, corrected_contrasts)
-    axes[1].set_xlabel("Magnetic field intensity (Oe)")
-    axes[1].set_ylabel("Contrast")
-    plt.ion()
+def plot_contrast(fig, ax, fields, contrasts, corrected_contrasts):
+    ax.cla()
+    ax.plot(fields, contrasts)
+    ax.plot(fields, corrected_contrasts)
+    ax.set_xlabel("Magnetic field intensity (Oe)")
+    ax.set_ylabel("Contrast")
     plt.show() # do not block (continue the program even when plot windows is not closed)
     plt.pause(.001)
 
