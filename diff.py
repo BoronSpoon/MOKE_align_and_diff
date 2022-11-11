@@ -274,12 +274,12 @@ def get_diff_frames(basis_frame, frames, max_diff, rate):
         for count, frame in enumerate(frames):
             diff_frame = get_diff_frame(basis_frame, frame, max_diff, rate)        
             diff_frames.append(diff_frame)        
-            cv2.imshow(path, diff_frame)
+            if status: cv2.imshow(path, diff_frame)
             if count == len_frames -1: # last frame: wait infinitely for "left", "right", "enter"
                 if status != False: # break when status = False
                     k = cv2.waitKey(0) 
             else:
-                k = cv2.waitKey(10) 
+                if status: k = cv2.waitKey(10) 
             if k in [13, 27]: # "enter" or "esc" key to break
                 status = False # break out of loop
                 if count == len_frames -1: 

@@ -75,15 +75,18 @@ def save_average_intensity(fields, average_intensities, corrected_average_intens
     plt.clf()
     plt.plot(fields, average_intensities, ocr_flag)
     if not ocr_flag: # y軸をスケール
-        min_ = np.min(corrected_average_intensities)
-        max_ = np.max(corrected_average_intensities)
+        min_ = np.min(average_intensities)
+        max_ = np.max(average_intensities)
         diff_ = max_ - min_
         plt.ylim([min_-diff_*0.1, max_+diff_*0.1])
     plt.xlabel(xlabel)
     plt.ylabel("Average Intensity")
     plt.savefig(plot_path)
-    if not ocr_flag:
-        plt.yscale("log")
+    if not ocr_flag: # 中心値を0にしてsemilogyでプロット
+        plt.clf()
+        plt.semilogy(fields, average_intensities - diff_/2, ocr_flag)
+        plt.xlabel(xlabel)
+        plt.ylabel("Centered Average Intensity") 
         plt.savefig(log_plot_path)
     plt.clf()
     plt.plot(fields, corrected_average_intensities, ocr_flag)
@@ -95,10 +98,13 @@ def save_average_intensity(fields, average_intensities, corrected_average_intens
     plt.xlabel(xlabel)
     plt.ylabel("Corrected Average Intensity")
     plt.savefig(corrected_plot_path)
-    if not ocr_flag:
-        plt.yscale("log")
+    if not ocr_flag: # 中心値を0にしてsemilogyでプロット
+        plt.clf()
+        plt.semilogy(fields, corrected_average_intensities - diff_/2, ocr_flag)
+        plt.xlabel(xlabel)
+        plt.ylabel("Centered Corrected Average Intensity") 
         plt.savefig(log_corrected_plot_path)
-    
+
 def plot_average_intensity(fig, ax, fields, average_intensities, corrected_average_intensities, hysterisis_region_list, ocr_flag):
     if ocr_flag: # 文字認識が行われている場合、ヒステリシスをプロット。
         xlabel = "Magnetic Field Intensity (Oe)"
