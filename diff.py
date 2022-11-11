@@ -136,9 +136,9 @@ def align_frames(basis_frame, frames, basis_frame_shift=(0,0,0,0), alignment_mod
     """
     aligned_frames = []
     shifts = []
-    print("processing frame: ", end=" ")
+    print("processing frame: ", end=" "); sys.stdout.flush()
     for count, frame in enumerate(frames):
-        print(count, end=", ")
+        print(count, end=", "); sys.stdout.flush()
         if shift_flag == True:
             aligned_frame, shift = align_frame(basis_frame, frame, basis_frame_shift, alignment_mode, shift_mode)
             aligned_frames.append(aligned_frame)
