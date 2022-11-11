@@ -74,11 +74,21 @@ def save_average_intensity(fields, average_intensities, corrected_average_intens
         xlabel = "Frame Count"
     plt.clf()
     plt.plot(fields, average_intensities, ocr_flag)
+    if not ocr_flag: # y軸をスケール
+        min_ = np.min(corrected_average_intensities)
+        max_ = np.max(corrected_average_intensities)
+        diff_ = max_ - min_
+        plt.ylim([min_-diff_*0.1, max_+diff_*0.1])
     plt.xlabel(xlabel)
     plt.ylabel("Average Intensity")
     plt.savefig(plot_path)
     plt.clf()
     plt.plot(fields, corrected_average_intensities, ocr_flag)
+    if not ocr_flag: # y軸をスケール
+        min_ = np.min(corrected_average_intensities)
+        max_ = np.max(corrected_average_intensities)
+        diff_ = max_ - min_
+        plt.ylim([min_-diff_*0.1, max_+diff_*0.1])
     plt.xlabel(xlabel)
     plt.ylabel("Corrected Average Intensity")
     plt.savefig(corrected_plot_path)
