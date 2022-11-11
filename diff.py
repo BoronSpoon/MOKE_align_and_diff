@@ -257,7 +257,7 @@ def get_diff_frames(basis_frame, frames, max_diff, rate):
         basis_frame (numpy 2D array): 基準画像
         frame (list of numpy 2D array): 測定画像を格納するリスト
         max_diff (float): 差分画像の最大値
-        rate (int): コントラスト（白黒）の増加具合
+        rate (int): 輝度平均（白黒）の増加具合
 
     Returns:
         diff_frames (list of numpy 2D array): 差分画像
@@ -305,7 +305,7 @@ def get_diff_frame(frame1, frame2, max_diff, rate):
         frame1 (numpy 2D array): 1枚目の画像
         frame2 (numpy 2D array): 2枚目の画像
         max_diff (float): 差分画像の最大値
-        rate (int): コントラスト（白黒）の増加具合
+        rate (int): 輝度平均（白黒）の増加具合
 
     Returns:
         diff_frame (numpy 2D array): 差分画像
@@ -323,23 +323,23 @@ def select_hysterisis_region(xmin, xmax):
     global hysterisis_region_list
     hysterisis_region_list.append([xmin, xmax])
 
-def correct_hysterisis(fields_, contrasts_, hysterisis_region_list):
+def correct_hysterisis(fields_, average_intensities_, hysterisis_region_list):
     fields = np.array(fields_)
-    contrasts = np.array(contrasts_)
+    average_intensities = np.array(average_intensities_)
     if len(hysterisis_region_list) == 0:
         slope = 0
     else:
         slopes = []
         for hysterisis_region in hysterisis_region_list:
             cropped_fields = fields[np.where((hysterisis_region[0]<fields)&(fields<hysterisis_region[1]))]
-            cropped_contrasts = contrasts[np.where((hysterisis_region[0]<fields)&(fields<hysterisis_region[1]))]
-            slopes.append(np.polyfit(cropped_fields,cropped_contrasts,1)[0])
+            cropped_average_intensities = average_intensities[np.where((hysterisis_region[0]<fields)&(fields<hysterisis_region[1]))]
+            slopes.append(np.polyfit(cropped_fields,cropped_average_intensities,1)[0])
         slope = sum(slopes)/len(slopes)
-    corrected_contrasts = contrasts - fields*slope
-    return list(corrected_contrasts)
+    corrected_average_intensities = average_intensities - fields*slope
+    return list(corrected_average_intensities)
 
-def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, corrected_plot_path, contrast_csv_path, ocr_flag):
-    """コントラストを得る領域を選択
+def select_region_and_get_average_intensity(basis_frame, frames, fields, path, plot_path, corrected_plot_path, average_intensity_csv_path, ocr_flag):
+    """輝度平均を得る領域を選択
 
     Args:
         basis_frame (numpy 2D array): 基準画像
@@ -347,22 +347,22 @@ def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path,
         fields (list of float): 測定画像の磁界強度を格納するリスト
         path (str): ウィンドウの名前(ファイルの保存先と同じ)
         plot_path (str): プロットの保存先
-        contrast_csv_path (str): コントラストのCSVの保存先
+        average_intensity_csv_path (str): 輝度平均のCSVの保存先
         ocr_flag (bool): True: ヒステリシスをプロット, False: 輝度平均の時間応答をプロット
     """
     status = True
-    get_coords_setup(basis_frame, path) # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
+    get_coords_setup(basis_frame, path) # 輝度平均測定範囲の設定をするための事前の準備(loopしてほしくないもの)
     plt.ion()
     fig, ax = plt.subplots(1, 1, figsize=(4,4), tight_layout=True) # 1つのsubplotを作る
     span = SpanSelector(ax, select_hysterisis_region, 'horizontal', useblit=True,interactive=True, props=dict(alpha=0.2, facecolor='red')) # axの領域を選択できるようにする
     while(status):
-        status = get_coords(basis_frame, path) # コントラスト測定範囲の設定
-        contrasts = get_contrast(frames, path) # コントラストの測定
-        corrected_contrasts = correct_hysterisis(fields, contrasts, hysterisis_region_list) # コントラストの傾き補正
-        plot_contrast(fig, ax, fields, contrasts, corrected_contrasts, hysterisis_region_list) # コントラスト対磁界のプロット
+        status = get_coords(basis_frame, path) # 輝度平均測定範囲の設定
+        average_intensities = get_average_intensity(frames, path) # 輝度平均の測定
+        corrected_average_intensities = correct_hysterisis(fields, average_intensities, hysterisis_region_list) # 輝度平均の傾き補正
+        plot_average_intensity(fig, ax, fields, average_intensities, corrected_average_intensities, hysterisis_region_list) # 輝度平均対磁界のプロット
     # 文字認識が行われている場合、ヒステリシスをプロット。MOVIEモードの場合、輝度平均の時間応答をプロット
-    save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path) # コントラスト対磁界(or 輝度平均)のファイル保存
-    contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
+    save_average_intensity(fields, average_intensities, corrected_average_intensities, plot_path, corrected_plot_path, ocr_flag) # 輝度平均対磁界(or 輝度平均)のファイル保存
+    average_intensity2csv(fields, average_intensities, average_intensity_csv_path, ocr_flag) # 輝度平均対磁界のcsv出力
 
 if __name__ == "__main__":
     rate = float(sys.argv[1]) # 差分画像の白黒の強調具合
@@ -376,9 +376,9 @@ if __name__ == "__main__":
     #shift_mode="normal" # normal or integer_shift
     #ocr_flag=True # 文字認識を使うか？磁界強度の記入されていない動画ではFalseにする
     
-    plot_path = path.replace(".avi","_contrast.png") # contrast plot path
-    corrected_plot_path = path.replace(".avi","_corrected_contrast.png") # contrast plot path
-    contrast_csv_path = path.replace(".avi","_contrast.csv") # contrast csv path
+    plot_path = path.replace(".avi","_average_intensity.png") # average_intensity plot path
+    corrected_plot_path = path.replace(".avi","_corrected_average_intensity.png") # average_intensity plot path
+    average_intensity_csv_path = path.replace(".avi","_average_intensity.csv") # average_intensity csv path
     diff_path = path.replace(".avi","_diff.avi") # diff avi path
     meas_path = path.replace(".avi","_meas.avi") # meas avi path
     shift_csv_path = path.replace(".avi","_shift.csv") # shift csv path(基準画像と測定画像のシフト量)
@@ -418,7 +418,7 @@ if __name__ == "__main__":
     print("saving video to file")
     write_frames_to_avi(aligned_frames, meas_path)
     write_frames_to_avi(diff_frames, diff_path)
-    select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, corrected_plot_path, contrast_csv_path, ocr_flag) # contrast on diff_frame -> meas_frame
+    select_region_and_get_average_intensity(basis_frame, frames, fields, path, plot_path, corrected_plot_path, average_intensity_csv_path, ocr_flag) # average_intensity on diff_frame -> meas_frame
 
     #.destroyAllWindows() 
     print("The video was successfully saved") 

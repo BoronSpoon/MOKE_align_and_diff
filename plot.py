@@ -27,14 +27,14 @@ def onMouse(event, x, y, flag, params):
             C.drawing = False
             C.done = True
 
-def get_coords_setup(frame, path): # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
-    print("select region to measure contrast")
+def get_coords_setup(frame, path): # 輝度平均測定範囲の設定をするための事前の準備(loopしてほしくないもの)
+    print("select region to measure average_intensity")
     print("press Enter, Esc to exit")
     cv2.namedWindow(path)
     original_frame = np.copy(frame)
     cv2.setMouseCallback(path, onMouse, [frame, original_frame])
 
-def get_coords(frame, path): # コントラスト測定範囲の設定
+def get_coords(frame, path): # 輝度平均測定範囲の設定
     status = True
     while True: 
         cv2.imshow(path,frame)
@@ -46,64 +46,68 @@ def get_coords(frame, path): # コントラスト測定範囲の設定
             break
     return status
 
-def get_contrast(frames, path):
-    contrasts = []
+def get_average_intensity(frames, path):
+    average_intensities = []
     for frame in frames:
         #print(C.plist)
         x = [min(C.plist[0][1], C.plist[1][1]), max(C.plist[0][1], C.plist[1][1])]
         y = [min(C.plist[0][0], C.plist[1][0]), max(C.plist[0][0], C.plist[1][0])]
-        cropped_frame = frame[x[0]:x[1], y[0]:y[1], :] # コントラストを測る部分にクロップ
-        cropped_frame = cv2.cvtColor(cropped_frame, cv2.COLOR_BGR2GRAY) # コントラストは白黒画像で測定
+        cropped_frame = frame[x[0]:x[1], y[0]:y[1], :] # 輝度平均を測る部分にクロップ
+        cropped_frame = cv2.cvtColor(cropped_frame, cv2.COLOR_BGR2GRAY) # 輝度平均は白黒画像で測定
         cropped_frame = cropped_frame.astype("float64")
         #cv2.imshow(plot, cropped_frame)
         #cv2.waitKey(100)
-        # RMS contrast
-        RMS_contrast = cropped_frame.std()
-        # mean contrast
-        mean_contrast = 100 * (cropped_frame.max()-cropped_frame.min())/cropped_frame.mean()
+        # RMS average_intensity
+        RMS_average_intensity = cropped_frame.std()
+        # mean average_intensity
+        mean_average_intensity = 100 * (cropped_frame.max()-cropped_frame.min())/cropped_frame.mean()
         # mean intensity
         mean_pixel = cropped_frame.mean()
-        #contrasts.append(mean_contrast) # use RMS constant
-        contrasts.append(mean_pixel) # use pixel intensity
-    return contrasts
+        #average_intensities.append(mean_average_intensity) # use RMS constant
+        average_intensities.append(mean_pixel) # use pixel intensity
+    return average_intensities
     
-def save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path, ocr_flag):
+def save_average_intensity(fields, average_intensities, corrected_average_intensities, plot_path, corrected_plot_path, ocr_flag):
     if ocr_flag: # 文字認識が行われている場合、ヒステリシスをプロット。
         xlabel = "Magnetic Field Intensity (Oe)"
     else: # MOVIEモードの場合、輝度平均の時間応答をプロット
         xlabel = "Frame Count"
     plt.clf()
-    plt.plot(fields, contrasts, ocr_flag)
+    plt.plot(fields, average_intensities, ocr_flag)
     plt.xlabel(xlabel)
-    plt.ylabel("Contrast")
+    plt.ylabel("Average Intensity")
     plt.savefig(plot_path)
     plt.clf()
-    plt.plot(fields, corrected_contrasts, ocr_flag)
+    plt.plot(fields, corrected_average_intensities, ocr_flag)
     plt.xlabel(xlabel)
-    plt.ylabel("Corrected contrast")
+    plt.ylabel("Corrected Average Intensity")
     plt.savefig(corrected_plot_path)
     
-def plot_contrast(fig, ax, fields, contrasts, corrected_contrasts, hysterisis_region_list, ocr_flag):
-    ax.cla()
-    ax.plot(fields, contrasts)
-    ax.plot(fields, corrected_contrasts)
+def plot_average_intensity(fig, ax, fields, average_intensities, corrected_average_intensities, hysterisis_region_list, ocr_flag):
     if ocr_flag: # 文字認識が行われている場合、ヒステリシスをプロット。
         xlabel = "Magnetic Field Intensity (Oe)"
     else: # MOVIEモードの場合、輝度平均の時間応答をプロット
         xlabel = "Frame Count"
+    ax.cla()
+    ax.plot(fields, average_intensities)
+    ax.plot(fields, corrected_average_intensities)
     ax.set_xlabel(xlabel)
-    ax.set_ylabel("Contrast")
+    ax.set_ylabel("Average Intensity")
     y_min, y_max = ax.get_ylim()
     for hysterisis_region in hysterisis_region_list:
         ax.add_patch(matplotlib.patches.Rectangle((hysterisis_region[0], y_min), hysterisis_region[1]-hysterisis_region[0], y_max-y_min, color="red", alpha=0.2))
     plt.show() # do not block (continue the program even when plot windows is not closed)
     plt.pause(.001)
 
-def contrast2csv(fields, contrasts, contrast_csv_path):
-    with open(contrast_csv_path, "w", newline ="") as f:  
+def average_intensity2csv(fields, average_intensities, average_intensity_csv_path, ocr_flag):
+    if ocr_flag: # 文字認識が行われている場合、ヒステリシスをプロット。
+        xlabel = "Magnetic Field Intensity (Oe)"
+    else: # MOVIEモードの場合、輝度平均の時間応答をプロット
+        xlabel = "Frame Count"
+    with open(average_intensity_csv_path, "w", newline ="") as f:  
         writer = csv.writer(f)
-        header = ["field strength (Oe)", "contrast"]
+        header = [xlabel, "Average Intensity"]
         writer.writerow(header) # write header
-        for field, contrast in zip(fields,contrasts): # write row by row
-            writer.writerow([field, contrast])
+        for field, average_intensity in zip(fields,average_intensities): # write row by row
+            writer.writerow([field, average_intensity])
 

@@ -1,6 +1,6 @@
 .venv/*
 .vscode/*
-contrast.png
+average_intensity.png
 *.avi
 offline_packages/*
 *.pyc
