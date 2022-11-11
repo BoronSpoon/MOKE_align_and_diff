@@ -67,23 +67,31 @@ def get_contrast(frames, path):
         contrasts.append(mean_pixel) # use pixel intensity
     return contrasts
     
-def save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path):
+def save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path, ocr_flag):
+    if ocr_flag: # 文字認識が行われている場合、ヒステリシスをプロット。
+        xlabel = "Magnetic Field Intensity (Oe)"
+    else: # MOVIEモードの場合、輝度平均の時間応答をプロット
+        xlabel = "Frame Count"
     plt.clf()
-    plt.plot(fields, contrasts)
-    plt.xlabel("Magnetic field intensity (Oe)")
+    plt.plot(fields, contrasts, ocr_flag)
+    plt.xlabel(xlabel)
     plt.ylabel("Contrast")
     plt.savefig(plot_path)
     plt.clf()
-    plt.plot(fields, corrected_contrasts)
-    plt.xlabel("Magnetic field intensity (Oe)")
+    plt.plot(fields, corrected_contrasts, ocr_flag)
+    plt.xlabel(xlabel)
     plt.ylabel("Corrected contrast")
     plt.savefig(corrected_plot_path)
     
-def plot_contrast(fig, ax, fields, contrasts, corrected_contrasts, hysterisis_region_list):
+def plot_contrast(fig, ax, fields, contrasts, corrected_contrasts, hysterisis_region_list, ocr_flag):
     ax.cla()
     ax.plot(fields, contrasts)
     ax.plot(fields, corrected_contrasts)
-    ax.set_xlabel("Magnetic field intensity (Oe)")
+    if ocr_flag: # 文字認識が行われている場合、ヒステリシスをプロット。
+        xlabel = "Magnetic Field Intensity (Oe)"
+    else: # MOVIEモードの場合、輝度平均の時間応答をプロット
+        xlabel = "Frame Count"
+    ax.set_xlabel(xlabel)
     ax.set_ylabel("Contrast")
     y_min, y_max = ax.get_ylim()
     for hysterisis_region in hysterisis_region_list:

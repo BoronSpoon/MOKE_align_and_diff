@@ -338,7 +338,7 @@ def correct_hysterisis(fields_, contrasts_, hysterisis_region_list):
     corrected_contrasts = contrasts - fields*slope
     return list(corrected_contrasts)
 
-def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, corrected_plot_path, contrast_csv_path):
+def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, corrected_plot_path, contrast_csv_path, ocr_flag):
     """コントラストを得る領域を選択
 
     Args:
@@ -348,6 +348,7 @@ def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path,
         path (str): ウィンドウの名前(ファイルの保存先と同じ)
         plot_path (str): プロットの保存先
         contrast_csv_path (str): コントラストのCSVの保存先
+        ocr_flag (bool): True: ヒステリシスをプロット, False: 輝度平均の時間応答をプロット
     """
     status = True
     get_coords_setup(basis_frame, path) # コントラスト測定範囲の設定をするための事前の準備(loopしてほしくないもの)
@@ -359,9 +360,9 @@ def select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path,
         contrasts = get_contrast(frames, path) # コントラストの測定
         corrected_contrasts = correct_hysterisis(fields, contrasts, hysterisis_region_list) # コントラストの傾き補正
         plot_contrast(fig, ax, fields, contrasts, corrected_contrasts, hysterisis_region_list) # コントラスト対磁界のプロット
-    if contrast_csv_path is not None: # 文字認識が行われている場合
-        save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path) # コントラスト対磁界のファイル保存
-        contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
+    # 文字認識が行われている場合、ヒステリシスをプロット。MOVIEモードの場合、輝度平均の時間応答をプロット
+    save_contrast(fields, contrasts, corrected_contrasts, plot_path, corrected_plot_path) # コントラスト対磁界(or 輝度平均)のファイル保存
+    contrast2csv(fields, contrasts, contrast_csv_path) # コントラスト対磁界のcsv出力
 
 if __name__ == "__main__":
     rate = float(sys.argv[1]) # 差分画像の白黒の強調具合
@@ -375,14 +376,9 @@ if __name__ == "__main__":
     #shift_mode="normal" # normal or integer_shift
     #ocr_flag=True # 文字認識を使うか？磁界強度の記入されていない動画ではFalseにする
     
-    if ocr_flag == True:
-        plot_path = path.replace(".avi","_contrast.png") # contrast plot path
-        corrected_plot_path = path.replace(".avi","_corrected_contrast.png") # contrast plot path
-        contrast_csv_path = path.replace(".avi","_contrast.csv") # contrast csv path
-    else: # 文字認識を行わない場合
-        plot_path = None
-        corrected_plot_path = path.replace(".avi","_corrected_contrast.png") # contrast plot path
-        contrast_csv_path = None
+    plot_path = path.replace(".avi","_contrast.png") # contrast plot path
+    corrected_plot_path = path.replace(".avi","_corrected_contrast.png") # contrast plot path
+    contrast_csv_path = path.replace(".avi","_contrast.csv") # contrast csv path
     diff_path = path.replace(".avi","_diff.avi") # diff avi path
     meas_path = path.replace(".avi","_meas.avi") # meas avi path
     shift_csv_path = path.replace(".avi","_shift.csv") # shift csv path(基準画像と測定画像のシフト量)
@@ -392,7 +388,7 @@ if __name__ == "__main__":
     if ocr_flag == True:
         fields = get_strings(frames) # 磁場の強さをocrで取得
     else: # 文字認識を行わない場合
-        fields = [0.0 for i in range(len(frames))] # 仮のデータを提供
+        fields = [i for i in range(len(frames))] # 仮のデータを提供
     # 基準画像とその他に分割
     basis_frame, frames, original_frames, fields = split_frames(frames, fields)
     first_basis_frame = basis_frame # 最初の基準画像を退避
@@ -422,8 +418,7 @@ if __name__ == "__main__":
     print("saving video to file")
     write_frames_to_avi(aligned_frames, meas_path)
     write_frames_to_avi(diff_frames, diff_path)
-    if ocr_flag == True:
-        select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, corrected_plot_path, contrast_csv_path) # contrast on diff_frame -> meas_frame
+    select_region_and_get_contrast(basis_frame, frames, fields, path, plot_path, corrected_plot_path, contrast_csv_path, ocr_flag) # contrast on diff_frame -> meas_frame
 
     #.destroyAllWindows() 
     print("The video was successfully saved") 
