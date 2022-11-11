@@ -67,7 +67,7 @@ def get_average_intensity(frames, path):
         average_intensities.append(mean_pixel) # use pixel intensity
     return average_intensities
     
-def save_average_intensity(fields, average_intensities, corrected_average_intensities, plot_path, corrected_plot_path, ocr_flag):
+def save_average_intensity(fields, average_intensities, corrected_average_intensities, plot_path, corrected_plot_path, log_plot_path, log_corrected_plot_path, ocr_flag):
     if ocr_flag: # 文字認識が行われている場合、ヒステリシスをプロット。
         xlabel = "Magnetic Field Intensity (Oe)"
     else: # MOVIEモードの場合、輝度平均の時間応答をプロット
@@ -82,6 +82,9 @@ def save_average_intensity(fields, average_intensities, corrected_average_intens
     plt.xlabel(xlabel)
     plt.ylabel("Average Intensity")
     plt.savefig(plot_path)
+    if not ocr_flag:
+        plt.yscale("log")
+        plt.savefig(log_plot_path)
     plt.clf()
     plt.plot(fields, corrected_average_intensities, ocr_flag)
     if not ocr_flag: # y軸をスケール
@@ -92,6 +95,9 @@ def save_average_intensity(fields, average_intensities, corrected_average_intens
     plt.xlabel(xlabel)
     plt.ylabel("Corrected Average Intensity")
     plt.savefig(corrected_plot_path)
+    if not ocr_flag:
+        plt.yscale("log")
+        plt.savefig(log_corrected_plot_path)
     
 def plot_average_intensity(fig, ax, fields, average_intensities, corrected_average_intensities, hysterisis_region_list, ocr_flag):
     if ocr_flag: # 文字認識が行われている場合、ヒステリシスをプロット。

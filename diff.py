@@ -341,7 +341,7 @@ def correct_hysterisis(fields_, average_intensities_, hysterisis_region_list):
     corrected_average_intensities = average_intensities - fields*slope
     return list(corrected_average_intensities)
 
-def select_region_and_get_average_intensity(basis_frame, frames, fields, path, plot_path, corrected_plot_path, average_intensity_csv_path, ocr_flag):
+def select_region_and_get_average_intensity(basis_frame, frames, fields, path, plot_path, corrected_plot_path, log_plot_path, log_corrected_plot_path, average_intensity_csv_path, ocr_flag):
     """輝度平均を得る領域を選択
 
     Args:
@@ -364,7 +364,7 @@ def select_region_and_get_average_intensity(basis_frame, frames, fields, path, p
         corrected_average_intensities = correct_hysterisis(fields, average_intensities, hysterisis_region_list) # 輝度平均の傾き補正
         plot_average_intensity(fig, ax, fields, average_intensities, corrected_average_intensities, hysterisis_region_list, ocr_flag) # 輝度平均対磁界のプロット
     # 文字認識が行われている場合、ヒステリシスをプロット。MOVIEモードの場合、輝度平均の時間応答をプロット
-    save_average_intensity(fields, average_intensities, corrected_average_intensities, plot_path, corrected_plot_path, ocr_flag) # 輝度平均対磁界(or 輝度平均)のファイル保存
+    save_average_intensity(fields, average_intensities, corrected_average_intensities, plot_path, corrected_plot_path, log_plot_path, log_corrected_plot_path, ocr_flag) # 輝度平均対磁界(or 輝度平均)のファイル保存
     average_intensity2csv(fields, average_intensities, average_intensity_csv_path, ocr_flag) # 輝度平均対磁界のcsv出力
 
 if __name__ == "__main__":
@@ -381,6 +381,8 @@ if __name__ == "__main__":
     
     plot_path = path.replace(".avi","_average_intensity.png") # average_intensity plot path
     corrected_plot_path = path.replace(".avi","_corrected_average_intensity.png") # average_intensity plot path
+    log_plot_path = path.replace(".avi","_average_intensity_log.png") # average_intensity plot path w/ semilogy
+    log_corrected_plot_path = path.replace(".avi","_corrected_average_intensity_log.png") # average_intensity plot path w/ semilogy
     average_intensity_csv_path = path.replace(".avi","_average_intensity.csv") # average_intensity csv path
     diff_path = path.replace(".avi","_diff.avi") # diff avi path
     meas_path = path.replace(".avi","_meas.avi") # meas avi path
@@ -422,7 +424,7 @@ if __name__ == "__main__":
     print("saving video to file")
     write_frames_to_avi(aligned_frames, meas_path)
     write_frames_to_avi(diff_frames, diff_path)
-    select_region_and_get_average_intensity(basis_frame, frames, fields, path, plot_path, corrected_plot_path, average_intensity_csv_path, ocr_flag) # average_intensity on diff_frame -> meas_frame
+    select_region_and_get_average_intensity(basis_frame, frames, fields, path, plot_path, corrected_plot_path, log_plot_path, log_corrected_plot_path, average_intensity_csv_path, ocr_flag) # average_intensity on diff_frame -> meas_frame
 
     #.destroyAllWindows() 
     print("The video was successfully saved") 
