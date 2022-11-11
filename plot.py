@@ -78,15 +78,16 @@ def save_average_intensity(fields, average_intensities, corrected_average_intens
         min_ = np.min(average_intensities)
         max_ = np.max(average_intensities)
         diff_ = max_ - min_
+        average_ = (max_ + min_)/2
         plt.ylim([min_-diff_*0.1, max_+diff_*0.1])
     plt.xlabel(xlabel)
     plt.ylabel("Average Intensity")
     plt.savefig(plot_path)
-    if not ocr_flag: # 中心値を0にしてsemilogyでプロット
+    if not ocr_flag: # 中心値を0にしてsymlog yでプロット
         plt.clf()
-        plt.semilogy(fields, average_intensities - diff_/2, ocr_flag)
+        plt.plot(fields, np.log(abs(average_intensities - average_)), ocr_flag)
         plt.xlabel(xlabel)
-        plt.ylabel("Centered Average Intensity") 
+        plt.ylabel("Logarithmic Centered Average Intensity") 
         plt.savefig(log_plot_path)
     plt.clf()
     plt.plot(fields, corrected_average_intensities, ocr_flag)
@@ -94,15 +95,16 @@ def save_average_intensity(fields, average_intensities, corrected_average_intens
         min_ = np.min(corrected_average_intensities)
         max_ = np.max(corrected_average_intensities)
         diff_ = max_ - min_
+        average_ = (max_ + min_)/2
         plt.ylim([min_-diff_*0.1, max_+diff_*0.1])
     plt.xlabel(xlabel)
     plt.ylabel("Corrected Average Intensity")
     plt.savefig(corrected_plot_path)
-    if not ocr_flag: # 中心値を0にしてsemilogyでプロット
+    if not ocr_flag: # 中心値を0にしてsymlog yでプロット
         plt.clf()
-        plt.semilogy(fields, corrected_average_intensities - diff_/2, ocr_flag)
+        plt.plot(fields, np.log(abs(corrected_average_intensities - average_)), ocr_flag)
         plt.xlabel(xlabel)
-        plt.ylabel("Centered Corrected Average Intensity") 
+        plt.ylabel("Logarithmic Centered Corrected Average Intensity") 
         plt.savefig(log_corrected_plot_path)
 
 def plot_average_intensity(fig, ax, fields, average_intensities, corrected_average_intensities, hysterisis_region_list, ocr_flag):

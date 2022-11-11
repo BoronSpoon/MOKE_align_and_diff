@@ -269,11 +269,11 @@ def get_diff_frames(basis_frame, frames, max_diff, rate):
     print("press wasd to change 'rate'")
     print("press Enter, Esc to exit")
     while (status):
-        diff_frames = []
         len_frames = len(frames)
+        diff_frames = [None for i in range(len_frames)]
         for count, frame in enumerate(frames):
-            diff_frame = get_diff_frame(basis_frame, frame, max_diff, rate)        
-            diff_frames.append(diff_frame)        
+            diff_frame = get_diff_frame(basis_frame, frame, max_diff, rate)     
+            diff_frames[count] = diff_frame
             if status: cv2.imshow(path, diff_frame)
             if count == len_frames -1: # last frame: wait infinitely for "left", "right", "enter"
                 if status != False: # break when status = False
@@ -381,8 +381,8 @@ if __name__ == "__main__":
     
     plot_path = path.replace(".avi","_average_intensity.png") # average_intensity plot path
     corrected_plot_path = path.replace(".avi","_corrected_average_intensity.png") # average_intensity plot path
-    log_plot_path = path.replace(".avi","_average_intensity_log.png") # average_intensity plot path w/ semilogy
-    log_corrected_plot_path = path.replace(".avi","_corrected_average_intensity_log.png") # average_intensity plot path w/ semilogy
+    log_plot_path = path.replace(".avi","_average_intensity_log.png") # average_intensity plot path w/ symlog y
+    log_corrected_plot_path = path.replace(".avi","_corrected_average_intensity_log.png") # average_intensity plot path w/ symlogy
     average_intensity_csv_path = path.replace(".avi","_average_intensity.csv") # average_intensity csv path
     diff_path = path.replace(".avi","_diff.avi") # diff avi path
     meas_path = path.replace(".avi","_meas.avi") # meas avi path
