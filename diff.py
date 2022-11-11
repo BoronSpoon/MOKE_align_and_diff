@@ -359,7 +359,7 @@ def select_region_and_get_average_intensity(basis_frame, frames, fields, path, p
         status = get_coords(basis_frame, path) # 輝度平均測定範囲の設定
         average_intensities = get_average_intensity(frames, path) # 輝度平均の測定
         corrected_average_intensities = correct_hysterisis(fields, average_intensities, hysterisis_region_list) # 輝度平均の傾き補正
-        plot_average_intensity(fig, ax, fields, average_intensities, corrected_average_intensities, hysterisis_region_list) # 輝度平均対磁界のプロット
+        plot_average_intensity(fig, ax, fields, average_intensities, corrected_average_intensities, hysterisis_region_list, ocr_flag) # 輝度平均対磁界のプロット
     # 文字認識が行われている場合、ヒステリシスをプロット。MOVIEモードの場合、輝度平均の時間応答をプロット
     save_average_intensity(fields, average_intensities, corrected_average_intensities, plot_path, corrected_plot_path, ocr_flag) # 輝度平均対磁界(or 輝度平均)のファイル保存
     average_intensity2csv(fields, average_intensities, average_intensity_csv_path, ocr_flag) # 輝度平均対磁界のcsv出力
