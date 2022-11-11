@@ -136,7 +136,9 @@ def align_frames(basis_frame, frames, basis_frame_shift=(0,0,0,0), alignment_mod
     """
     aligned_frames = []
     shifts = []
-    for frame in frames:
+    print("processing frame: ", end=" ")
+    for count, frame in enumerate(frames):
+        print(count, end=", ")
         if shift_flag == True:
             aligned_frame, shift = align_frame(basis_frame, frame, basis_frame_shift, alignment_mode, shift_mode)
             aligned_frames.append(aligned_frame)
@@ -144,6 +146,7 @@ def align_frames(basis_frame, frames, basis_frame_shift=(0,0,0,0), alignment_mod
         elif shift_flag == False:
             aligned_frames.append(frame)
             shifts.append([0,0,0,0])
+    print("")
     return aligned_frames, shifts
 
 def align_frame(frame1, frame2, basis_frame_shift=(0,0,0,0), alignment_mode="normal", shift_mode="normal"):
@@ -397,13 +400,14 @@ if __name__ == "__main__":
     span = None
     hysterisis_region_list = [] # ヒステリシスの補正に使う領域のリスト
     basis_frame_shift = [0, 0, 0, 0] # 「各グループのbasis frame」の「一番最初のbasis frame」から見たshift
-    group_frame_count = len(frames) # number of total frames (dont split frames)
-    #group_frame_count = 10 # number of frames in group
+    #group_frame_count = len(frames) # number of total frames (dont split frames)
+    group_frame_count = 30 # number of frames in group
     group_num = int(len(frames)/group_frame_count) # number of groups
     for group in range(group_num):
         print(f"group {group+1}/{group_num}")
         # グループに属するフレーム
         group_frames = frames[group*group_frame_count: (group+1)*group_frame_count]
+        print(f"{len(group_frames)} frames in group")
         # 基準画像とその他に分割
         group_aligned_frames, group_shifts = align_frames(basis_frame, group_frames, 
             basis_frame_shift=basis_frame_shift, alignment_mode=alignment_mode, shift_mode=shift_mode, shift_flag=shift_flag) # 基準・測定画像の位置合わせ
